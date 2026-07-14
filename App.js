@@ -17,7 +17,7 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
-        fetchUserProfile(session.user.id);
+        fetchUserProfile(session.user.id, session.user.email);
       } else {
         setCheckingAuth(false);
       }
@@ -27,7 +27,8 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) {
-        fetchUserProfile(session.user.id);
+        // Pass email directly to avoid stale closure on the session state variable
+        fetchUserProfile(session.user.id, session.user.email);
       } else {
         setUserProfile(null);
         setCheckingAuth(false);
@@ -38,26 +39,37 @@ export default function App() {
   }, []);
 
   // Fetch the cashier profile from the 'usuarios' table
-  const fetchUserProfile = async (userId) => {
+  const fetchUserProfile = async (userId, userEmail) => {
     try {
       const { data, error } = await supabase
         .from('usuarios')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      setUserProfile(data);
+
+      if (data) {
+        setUserProfile(data);
+      } else {
+        const nombre = userEmail ? userEmail.split('@')[0] : 'Usuario';
+        setUserProfile({
+          id: userId,
+          nombre,
+          rol: 'cajero',
+          email: userEmail || '',
+          sucursal_id: null,
+        });
+      }
     } catch (error) {
       console.warn('Error fetching profile from "usuarios" table:', error.message);
-      // Fallback: extract username prefix from email if profile table row doesn't exist yet
-      const currentUser = supabase.auth.user ? supabase.auth.user() : null;
-      const email = session?.user?.email || '';
+      const nombre = userEmail ? userEmail.split('@')[0] : 'Usuario';
       setUserProfile({
         id: userId,
-        nombre: email ? email.split('@')[0] : 'Cajero',
+        nombre,
         rol: 'cajero',
-        email: email,
+        email: userEmail || '',
+        sucursal_id: null,
       });
     } finally {
       setCheckingAuth(false);

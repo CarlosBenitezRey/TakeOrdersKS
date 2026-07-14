@@ -1,13 +1,37 @@
 /**
  * ADMINISTRADOR DE IMÁGENES DEL MENÚ (Assets)
- * 
- * En este archivo puedes mapear las palabras clave de los nombres de tus productos
- * con enlaces a imágenes PNG/SVG/JPG, o recursos locales importados con 'require()'.
- * 
- * Si deseas usar imágenes locales en el futuro, puedes importarlas así:
- * import hamburguesaImg from '../../assets/hamburguesa.png';
- * y luego asignarla en la lista: burger: hamburguesaImg
+ *
+ * Imágenes locales importadas con require() para las pizzas y hamburguesas.
+ * Para URLs externas (Unsplash), se usan strings directamente en PRODUCT_IMAGES.
  */
+
+// --- Imágenes locales ---
+const LOCAL_IMAGES = {
+  pizza_muzzarella: require('./products/pizza_muzzarella.jpg'),
+  pizza_napolitana: require('./products/pizza_napolitana.jpg'),
+  pizza_pepperoni: require('./products/pizza_pepperoni.jpg'),
+  pizza_choclo: require('./products/pizza_choclo.jpg'),
+  pizza_katupiry: require('./products/pizza_katupiry.jpg'),
+  pizza_jyq: require('./products/pizza_jyq.png'),
+  hamburguesa_doble: require('./products/hamburguesa-doble.webp'),
+  hamburguesa_sencilla: require('./products/hamburguesa-sencilla.jpg'),
+};
+
+export const APP_ICONS = {
+  todos: require('./Assets/todos.png'),
+  lomito: require('./Assets/lomito.png'),
+  hamburguesa: require('./Assets/hamburguesa.png'),
+  pizza: require('./Assets/pizza.png'),
+  papas: require('./Assets/papas-fritas.png'),
+  bebidas: require('./Assets/bebidas.png'),
+  extras: require('./Assets/extras.png'),
+  kitchen: require('./Assets/kitchen.png'),
+  logout: require('./Assets/logout.png'),
+  reload: require('./Assets/reload.png'),
+  statistics: require('./Assets/statistics.png'),
+  userDefault: require('./Assets/userDefault.png'),
+  admin: require('./Assets/admin.png'),
+};
 
 export const PRODUCT_IMAGES = {
   // Categoría: Lomitos
@@ -19,7 +43,7 @@ export const PRODUCT_IMAGES = {
   hamburguesa: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=300&auto=format&fit=crop&q=80',
   burger: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=300&auto=format&fit=crop&q=80',
 
-  // Categoría: Pizzas
+  // Categoría: Pizzas (genérica como fallback)
   pizza: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=300&auto=format&fit=crop&q=80',
 
   // Categoría: Papas Fritas
@@ -50,20 +74,51 @@ export const PRODUCT_IMAGES = {
 };
 
 /**
- * Retorna la URL de imagen o recurso que coincida con el nombre del producto.
+ * Retorna la imagen que corresponde al nombre del producto.
+ * Siempre retorna un valor válido para el prop `source` de <Image>:
+ * - Imágenes locales (require): se retornan como número directamente.
+ * - URLs remotas: se retornan como { uri: '...' }.
  * @param {string} name Nombre del producto.
- * @returns {string|number} Enlace web o recurso de imagen.
+ * @returns {number|{uri: string}} Fuente de imagen válida para React Native.
  */
 export const getProductImage = (name) => {
-  if (!name) return PRODUCT_IMAGES.default;
+  if (!name) return { uri: PRODUCT_IMAGES.default };
   const normalized = name.toLowerCase();
-  
-  // Buscar coincidencia por palabra clave
+
+  // 1. Coincidencias específicas con imágenes locales (más precisas, van primero)
+  if (normalized.includes('muzzarella') || normalized.includes('mozzarella')) return LOCAL_IMAGES.pizza_muzzarella;
+  if (normalized.includes('napolitana'))   return LOCAL_IMAGES.pizza_napolitana;
+  if (normalized.includes('pepperoni'))    return LOCAL_IMAGES.pizza_pepperoni;
+  if (normalized.includes('choclo'))       return LOCAL_IMAGES.pizza_choclo;
+  if (normalized.includes('katupiry'))     return LOCAL_IMAGES.pizza_katupiry;
+  if (normalized.includes('jyq') || normalized.includes('j&q') || normalized.includes('j y q')) return LOCAL_IMAGES.pizza_jyq;
+  if (normalized.includes('doble'))        return LOCAL_IMAGES.hamburguesa_doble;
+  if (normalized.includes('sencilla') || normalized.includes('simple')) return LOCAL_IMAGES.hamburguesa_sencilla;
+
+  // 2. Búsqueda genérica por palabra clave en PRODUCT_IMAGES (URLs remotas)
   for (const key of Object.keys(PRODUCT_IMAGES)) {
     if (key !== 'default' && normalized.includes(key)) {
-      return PRODUCT_IMAGES[key];
+      return { uri: PRODUCT_IMAGES[key] };
     }
   }
-  
-  return PRODUCT_IMAGES.default;
+
+  return { uri: PRODUCT_IMAGES.default };
+};
+
+/**
+ * Retorna la imagen de icono que corresponde al nombre de la categoría.
+ * @param {string} name Nombre de la categoría.
+ * @returns {number} Recurso local importado con require().
+ */
+export const getCategoryIcon = (name) => {
+  if (!name) return APP_ICONS.todos;
+  const normalized = name.toLowerCase();
+  if (normalized.includes('todos')) return APP_ICONS.todos;
+  if (normalized.includes('lomito')) return APP_ICONS.lomito;
+  if (normalized.includes('hamburguesa') || normalized.includes('burger')) return APP_ICONS.hamburguesa;
+  if (normalized.includes('pizza')) return APP_ICONS.pizza;
+  if (normalized.includes('papas') || normalized.includes('fritas')) return APP_ICONS.papas;
+  if (normalized.includes('bebida') || normalized.includes('refresco') || normalized.includes('gaseosa')) return APP_ICONS.bebidas;
+  if (normalized.includes('extra') || normalized.includes('postre')) return APP_ICONS.extras;
+  return APP_ICONS.todos;
 };

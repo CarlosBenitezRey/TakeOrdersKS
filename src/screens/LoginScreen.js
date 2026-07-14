@@ -91,7 +91,6 @@ export default function LoginScreen({ onLoginSuccess }) {
         <View style={styles.innerContainer}>
           {/* LOGO AREA */}
           <View style={styles.logoContainer}>
-            <Text style={styles.logoIcon}>🚗</Text>
             <Text style={styles.appName}>El Carro</Text>
             <Text style={styles.appSubtitle}>Sistema de Pedidos</Text>
           </View>

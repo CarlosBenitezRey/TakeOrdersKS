@@ -10,6 +10,7 @@ import {
   Platform,
   StatusBar,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { supabase } from '../services/supabase';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../theme/theme';
@@ -17,9 +18,55 @@ import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../theme/theme';
 export default function CocinaScreen({ userProfile, onSwitchView }) {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pedidoAEliminar, setPedidoAEliminar] = useState(null);
+
+  const handleEliminarPedido = async (pedidoId) => {
+    try {
+      setLoading(true);
+      // Borrar detalle
+      const { error: dError } = await supabase
+        .from('detalle_pedido')
+        .delete()
+        .eq('pedido_id', pedidoId);
+
+      if (dError) throw dError;
+
+      // Borrar pedido
+      const { error: pError } = await supabase
+        .from('pedidos')
+        .delete()
+        .eq('id', pedidoId);
+
+      if (pError) throw pError;
+
+      // Actualizar estado local
+      setPedidos(current => current.filter(p => p.id !== pedidoId));
+      setPedidoAEliminar(null);
+    } catch (error) {
+      console.error('Error eliminando pedido:', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const [sucursales, setSucursales] = useState([]);
+  const [selectedSucursalId, setSelectedSucursalId] = useState(userProfile?.sucursal_id || 'all');
 
   useEffect(() => {
-    cargarPedidos();
+    // If admin/no sucursal assigned, fetch the list of sucursales
+    if (!userProfile?.sucursal_id) {
+      supabase
+        .from('sucursales')
+        .select('*')
+        .then(({ data }) => {
+          if (data) setSucursales(data);
+        })
+        .catch(err => console.log('Error loading sucursales in Cocina:', err));
+    }
+  }, []);
+
+  useEffect(() => {
+    cargarPedidos(selectedSucursalId);
 
     // Subscribe to realtime changes on the pedidos table
     const subscription = supabase
@@ -33,8 +80,7 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
         },
         (payload) => {
           console.log('Cambio en pedidos:', payload);
-          // Reload all orders to get the updated joined data
-          cargarPedidos();
+          cargarPedidos(selectedSucursalId);
         }
       )
       .subscribe();
@@ -42,13 +88,14 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, []);
+  }, [selectedSucursalId]);
 
-  const cargarPedidos = async () => {
+  const cargarPedidos = async (targetSucursalId) => {
     try {
       setLoading(true);
-      // Fetch orders that are 'pendiente' or 'listo', including details and product info
-      const { data, error } = await supabase
+      const target = targetSucursalId !== undefined ? targetSucursalId : selectedSucursalId;
+
+      let query = supabase
         .from('pedidos')
         .select(`
           *,
@@ -60,8 +107,16 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
             )
           )
         `)
-        .in('estado', ['pendiente', 'listo'])
-        .order('created_at', { ascending: true });
+        .in('estado', ['pendiente', 'listo']);
+
+      // Filter by sucursal
+      if (userProfile?.sucursal_id) {
+        query = query.eq('sucursal_id', userProfile.sucursal_id);
+      } else if (target && target !== 'all') {
+        query = query.eq('sucursal_id', target);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: true });
 
       if (error) throw error;
       setPedidos(data || []);
@@ -80,12 +135,12 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
         .eq('id', pedidoId);
 
       if (error) throw error;
-      
+
       // The realtime subscription will trigger a reload, but we can do an optimistic update
-      setPedidos(current => 
+      setPedidos(current =>
         current.map(p => p.id === pedidoId ? { ...p, estado: nuevoEstado } : p)
       );
-      
+
       if (nuevoEstado === 'entregado') {
         // If it's delivered, we can remove it from the screen optimistically
         setPedidos(current => current.filter(p => p.id !== pedidoId));
@@ -113,50 +168,75 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
 
   const renderPedido = ({ item }) => {
     const isPendiente = item.estado === 'pendiente';
+    const textColor = isPendiente ? '#000000' : '#FFFFFF';
+    const textMutedColor = isPendiente ? '#555555' : '#F3F4F6';
+    
     return (
       <View style={[styles.pedidoCard, !isPendiente && styles.pedidoCardListo]}>
         <View style={styles.pedidoHeader}>
-          <Text style={styles.pedidoId}>Pedido #{item.id.toString().slice(0, 5)}</Text>
-          <Text style={styles.pedidoTime}>{formatTime(item.created_at)}</Text>
+          <Text style={[styles.pedidoId, { color: textColor }]}>Pedido #{item.id.toString().slice(0, 5).toUpperCase()}</Text>
+          <Text style={[styles.pedidoTime, { color: textMutedColor }]}>{formatTime(item.created_at)}</Text>
         </View>
 
         <View style={styles.pedidoInfo}>
-          {item.mesa ? <Text style={styles.pedidoMetaText}>📍 Mesa: {item.mesa}</Text> : null}
-          {item.cliente ? <Text style={styles.pedidoMetaText}>👤 Cliente: {item.cliente}</Text> : null}
+          {item.mesa ? (
+            <Text style={[styles.pedidoMetaText, { color: textColor, backgroundColor: isPendiente ? '#E5E7EB' : 'rgba(255, 255, 255, 0.2)' }]}>
+              Mesa: {item.mesa}
+            </Text>
+          ) : null}
+          {item.cliente ? (
+            <Text style={[styles.pedidoMetaText, { color: textColor, backgroundColor: isPendiente ? '#E5E7EB' : 'rgba(255, 255, 255, 0.2)' }]}>
+              Cliente: {item.cliente}
+            </Text>
+          ) : null}
         </View>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: isPendiente ? '#000000' : '#FFFFFF', opacity: isPendiente ? 0.2 : 0.4 }]} />
 
         <View style={styles.detallesContainer}>
           {item.detalle_pedido?.map((detalle, index) => (
             <View key={index} style={styles.detalleItem}>
-              <Text style={styles.detalleCantidad}>{detalle.cantidad}x</Text>
-              <Text style={styles.detalleNombre}>{detalle.productos?.nombre}</Text>
+              <Text style={[styles.detalleCantidad, { color: isPendiente ? COLORS.primary : '#FFFFFF' }]}>{detalle.cantidad}x</Text>
+              <Text style={[styles.detalleNombre, { color: textColor }]}>{detalle.productos?.nombre}</Text>
             </View>
           ))}
         </View>
 
         {item.notas ? (
-          <View style={styles.notasContainer}>
-            <Text style={styles.notasTitle}>📝 Notas:</Text>
-            <Text style={styles.notasText}>{item.notas}</Text>
+          <View style={[
+            styles.notasContainer, 
+            { 
+              backgroundColor: isPendiente ? 'rgba(234, 179, 8, 0.15)' : 'rgba(255, 255, 255, 0.15)',
+              borderColor: isPendiente ? 'rgba(234, 179, 8, 0.4)' : 'rgba(255, 255, 255, 0.4)'
+            }
+          ]}>
+            <Text style={[styles.notasTitle, { color: isPendiente ? '#D97706' : '#FFFFFF' }]}>Notas:</Text>
+            <Text style={[styles.notasText, { color: textColor }]}>{item.notas}</Text>
           </View>
         ) : null}
 
         <View style={styles.actionContainer}>
           {isPendiente ? (
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.buttonListo]}
-              onPress={() => actualizarEstadoPedido(item.id, 'listo')}
-            >
-              <Text style={styles.actionButtonText}>Marcar como Listo ✓</Text>
-            </TouchableOpacity>
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.buttonEliminar]}
+                onPress={() => setPedidoAEliminar(item.id)}
+              >
+                <Text style={styles.actionButtonText}>🗑️ Borrar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.buttonListo]}
+                onPress={() => actualizarEstadoPedido(item.id, 'listo')}
+              >
+                <Text style={styles.actionButtonText}>Marcar como Listo</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.actionButton, styles.buttonEntregado]}
               onPress={() => actualizarEstadoPedido(item.id, 'entregado')}
             >
-              <Text style={styles.actionButtonText}>Entregado (Quitar) 🚀</Text>
+              <Text style={[styles.actionButtonText, { color: COLORS.success }]}>Entregado (Quitar)</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -167,21 +247,21 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-      
+
       {/* HEADER */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Vista de Cocina 🧑‍🍳</Text>
+          <Text style={styles.headerTitle}>Cocina</Text>
           <Text style={styles.headerSubtitle}>Preparación de pedidos</Text>
         </View>
         <View style={styles.headerActions}>
           {onSwitchView && (
             <TouchableOpacity style={styles.headerActionButton} onPress={onSwitchView}>
-              <Text style={styles.headerActionText}>Cajero 🔄</Text>
+              <Text style={styles.headerActionText}>Cajero</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity 
-            style={[styles.headerActionButton, styles.logoutButton]} 
+          <TouchableOpacity
+            style={[styles.headerActionButton, styles.logoutButton]}
             onPress={handleLogout}
           >
             <Text style={styles.logoutButtonText}>Salir</Text>
@@ -196,7 +276,51 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
         </View>
       ) : (
         <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
-          <Text style={styles.sectionTitle}>Pendientes 🕒 ({pendientes.length})</Text>
+          {/* SELECTOR DE SUCURSAL (Solo para Administrador General) */}
+          {!userProfile?.sucursal_id && sucursales.length > 0 && (
+            <View style={styles.sucursalFilterCard}>
+              <Text style={styles.sucursalFilterLabel}>Monitorear Local:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sucursalFilterList}>
+                <TouchableOpacity
+                  style={[
+                    styles.sucursalFilterButton,
+                    selectedSucursalId === 'all' && styles.sucursalFilterButtonSelected,
+                  ]}
+                  onPress={() => setSelectedSucursalId('all')}
+                >
+                  <Text
+                    style={[
+                      styles.sucursalFilterButtonText,
+                      selectedSucursalId === 'all' && styles.sucursalFilterButtonTextSelected,
+                    ]}
+                  >
+                    Todos
+                  </Text>
+                </TouchableOpacity>
+                {sucursales.map((suc) => (
+                  <TouchableOpacity
+                    key={suc.id}
+                    style={[
+                      styles.sucursalFilterButton,
+                      selectedSucursalId === suc.id && styles.sucursalFilterButtonSelected,
+                    ]}
+                    onPress={() => setSelectedSucursalId(suc.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.sucursalFilterButtonText,
+                        selectedSucursalId === suc.id && styles.sucursalFilterButtonTextSelected,
+                      ]}
+                    >
+                      {suc.nombre}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          <Text style={styles.sectionTitle}>Pendientes ({pendientes.length})</Text>
           {pendientes.length === 0 ? (
             <Text style={styles.emptyText}>No hay pedidos pendientes</Text>
           ) : (
@@ -209,7 +333,7 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
             />
           )}
 
-          <Text style={[styles.sectionTitle, styles.sectionTitleListo]}>Listos para Entregar ✅ ({listos.length})</Text>
+          <Text style={[styles.sectionTitle, styles.sectionTitleListo]}>Listos para Entregar ({listos.length})</Text>
           {listos.length === 0 ? (
             <Text style={styles.emptyText}>No hay pedidos listos esperando entrega</Text>
           ) : (
@@ -223,6 +347,37 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
           )}
         </ScrollView>
       )}
+      {/* CONFIRM DELETE DIALOG */}
+      <Modal
+        visible={pedidoAEliminar !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setPedidoAEliminar(null)}
+      >
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmBox}>
+            <Text style={styles.confirmEmoji}>⚠️</Text>
+            <Text style={styles.confirmTitle}>¿Eliminar este pedido?</Text>
+            <Text style={styles.confirmText}>
+              Esta acción es permanente. Desaparecerá de la cocina y se anulará.
+            </Text>
+            <View style={styles.confirmButtons}>
+              <TouchableOpacity 
+                style={[styles.confirmBtn, styles.confirmBtnCancel]} 
+                onPress={() => setPedidoAEliminar(null)}
+              >
+                <Text style={styles.confirmBtnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.confirmBtn, styles.confirmBtnDelete]} 
+                onPress={() => handleEliminarPedido(pedidoAEliminar)}
+              >
+                <Text style={styles.confirmBtnDeleteText}>Sí, Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -296,7 +451,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...TYPOGRAPHY.h2,
-    color: COLORS.warning, // Orange/yellow for pending
+    color: COLORS.text, // White for pending section
     marginBottom: SPACING.sm,
     marginTop: SPACING.md,
   },
@@ -313,18 +468,25 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   pedidoCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: '#FFFFFF',
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
-    borderLeftWidth: 4,
+    borderLeftWidth: 6,
     borderLeftColor: COLORS.warning,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: 2,
+    borderColor: '#000000',
     marginBottom: SPACING.md,
+    // Soft shadow for contrast
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
   },
   pedidoCardListo: {
-    borderLeftColor: COLORS.success,
-    backgroundColor: 'rgba(16, 185, 129, 0.05)',
+    borderLeftColor: '#FFFFFF',
+    backgroundColor: COLORS.success,
+    borderColor: COLORS.success,
   },
   pedidoHeader: {
     flexDirection: 'row',
@@ -333,12 +495,12 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   pedidoId: {
-    ...TYPOGRAPHY.h3,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '900',
   },
   pedidoTime: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
+    fontSize: 14,
+    fontWeight: '700',
   },
   pedidoInfo: {
     flexDirection: 'row',
@@ -346,16 +508,15 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   pedidoMetaText: {
-    ...TYPOGRAPHY.caption,
-    backgroundColor: COLORS.cardElevated,
+    fontSize: 14,
+    fontWeight: '700',
     paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
+    paddingVertical: 4,
     borderRadius: BORDER_RADIUS.sm,
     overflow: 'hidden',
   },
   divider: {
-    height: 1,
-    backgroundColor: COLORS.border,
+    height: 2,
     marginVertical: SPACING.sm,
   },
   detallesContainer: {
@@ -367,55 +528,164 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   detalleCantidad: {
-    ...TYPOGRAPHY.body,
-    fontWeight: '800',
-    color: COLORS.primary,
-    width: 35,
+    fontSize: 20,
+    fontWeight: '950',
+    width: 45,
   },
   detalleNombre: {
-    ...TYPOGRAPHY.body,
+    fontSize: 18,
+    fontWeight: '700',
     flex: 1,
   },
   notasContainer: {
-    backgroundColor: 'rgba(234, 179, 8, 0.1)',
     padding: SPACING.sm,
     borderRadius: BORDER_RADIUS.sm,
     borderWidth: 1,
-    borderColor: 'rgba(234, 179, 8, 0.3)',
     marginTop: SPACING.sm,
   },
   notasTitle: {
-    ...TYPOGRAPHY.caption,
-    fontWeight: '700',
-    color: COLORS.warning,
+    fontSize: 13,
+    fontWeight: '800',
     marginBottom: 2,
   },
   notasText: {
-    ...TYPOGRAPHY.body,
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: '600',
   },
   actionContainer: {
     marginTop: SPACING.md,
     alignItems: 'flex-end',
   },
   actionButton: {
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.sm + 2,
     paddingHorizontal: SPACING.xl,
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 150,
   },
   buttonListo: {
     backgroundColor: COLORS.success,
   },
   buttonEntregado: {
-    backgroundColor: COLORS.cardElevated,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: COLORS.success,
+    borderColor: '#FFFFFF',
   },
   actionButtonText: {
     color: '#FFF',
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    width: '100%',
+    gap: 12,
+  },
+  buttonEliminar: {
+    backgroundColor: COLORS.danger,
+    borderColor: COLORS.danger,
+    borderWidth: 1,
+  },
+  // Modal Confirmación Eliminar
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  confirmBox: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  confirmEmoji: {
+    fontSize: 48,
+    marginBottom: SPACING.sm,
+  },
+  confirmTitle: {
+    ...TYPOGRAPHY.h2,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+  confirmText: {
+    ...TYPOGRAPHY.bodyMuted,
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
+    lineHeight: 20,
+  },
+  confirmButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  confirmBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: BORDER_RADIUS.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  confirmBtnCancel: {
+    backgroundColor: COLORS.cardElevated,
+  },
+  confirmBtnCancelText: {
+    color: COLORS.text,
     fontWeight: '700',
-    ...TYPOGRAPHY.button,
+  },
+  confirmBtnDelete: {
+    backgroundColor: COLORS.danger,
+  },
+  confirmBtnDeleteText: {
+    color: COLORS.textLight,
+    fontWeight: '700',
+  },
+  sucursalFilterCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  sucursalFilterLabel: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    fontWeight: '800',
+    marginBottom: SPACING.xs,
+    letterSpacing: 1,
+  },
+  sucursalFilterList: {
+    paddingVertical: 4,
+    gap: 8,
+  },
+  sucursalFilterButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.cardElevated,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  sucursalFilterButtonSelected: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  sucursalFilterButtonText: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    fontWeight: '600',
+  },
+  sucursalFilterButtonTextSelected: {
+    color: COLORS.textLight,
+    fontWeight: '800',
   },
 });
