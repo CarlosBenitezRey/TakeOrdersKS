@@ -8,12 +8,10 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  TouchableWithoutFeedback,
-  Keyboard,
   SafeAreaView,
   StatusBar,
 } from 'react-native';
-import { supabase } from '../services/supabase';
+import authService from '../services/AuthService';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../theme/theme';
 
 export default function LoginScreen({ onLoginSuccess }) {
@@ -23,59 +21,16 @@ export default function LoginScreen({ onLoginSuccess }) {
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleLogin = async () => {
-    // Basic validation
-    if (!email.trim() || !password.trim()) {
-      setErrorMessage('Por favor, ingresa tu correo y contraseña');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      setErrorMessage('Por favor, ingresa un correo electrónico válido');
-      return;
-    }
-
     try {
       setLoading(true);
       setErrorMessage('');
 
-      // 1. Authenticate with Supabase Auth
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password,
-      });
-
-      if (error) throw error;
-
-      // 2. Fetch the user profile from the 'usuarios' table
-      const { data: perfil, error: perfilError } = await supabase
-        .from('usuarios')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
-
-      if (perfilError) {
-        // Fallback profile if record is missing in usuarios table but auth succeeded
-        console.warn('Perfil de usuario no encontrado en la tabla "usuarios":', perfilError.message);
-        /*onLoginSuccess({
-          id: data.user.id,
-          email: data.user.email,
-          nombre: data.user.email.split('@')[0], // Extract name from email
-          rol: 'cajero',
-        });*/
-      } else {
-        onLoginSuccess(perfil);
-      }
+      // Toda la lógica de validación y autenticación está en AuthService
+      const { perfil } = await authService.login(email, password);
+      onLoginSuccess(perfil);
     } catch (error) {
-      console.error('Error en el login:', error.message);
-      // Translate common Supabase auth errors for better cashier UX
-      let userFriendlyError = 'Ocurrió un error al intentar iniciar sesión';
-      if (error.message.includes('Invalid login credentials')) {
-        userFriendlyError = 'Correo o contraseña incorrectos';
-      } else if (error.message.includes('Network request failed')) {
-        userFriendlyError = 'Error de conexión. Verifica tu internet';
-      }
-      setErrorMessage(userFriendlyError);
+      // AuthService ya devuelve mensajes en español
+      setErrorMessage(error.message);
     } finally {
       setLoading(false);
     }
@@ -186,10 +141,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.xl,
   },
-  logoIcon: {
-    fontSize: 64,
-    marginBottom: SPACING.xs,
-  },
   appName: {
     ...TYPOGRAPHY.h1,
     color: COLORS.primary,
@@ -207,12 +158,10 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
-    // iOS shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
-    // Android shadow
     elevation: 5,
   },
   formTitle: {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { supabase } from './src/services/supabase';
+import authService from './src/services/AuthService';
 import LoginScreen from './src/screens/LoginScreen';
 import CajeroScreen from './src/screens/CajeroScreen';
 import CocinaScreen from './src/screens/CocinaScreen';
@@ -13,22 +13,21 @@ export default function App() {
   const [currentView, setCurrentView] = useState('cajero'); // 'cajero' | 'cocina'
 
   useEffect(() => {
-    // 1. Recover active session on app launch
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // 1. Recuperar sesión activa al abrir la app
+    authService.getSesionActual().then((session) => {
       setSession(session);
       if (session) {
-        fetchUserProfile(session.user.id, session.user.email);
+        cargarPerfil(session.user.id, session.user.email);
       } else {
         setCheckingAuth(false);
       }
     });
 
-    // 2. Listen to authentication state changes (e.g. login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // 2. Escuchar cambios de estado de autenticación (login, logout, token refresh)
+    const subscription = authService.suscribirCambiosAuth((_event, session) => {
       setSession(session);
       if (session) {
-        // Pass email directly to avoid stale closure on the session state variable
-        fetchUserProfile(session.user.id, session.user.email);
+        cargarPerfil(session.user.id, session.user.email);
       } else {
         setUserProfile(null);
         setCheckingAuth(false);
@@ -38,49 +37,22 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch the cashier profile from the 'usuarios' table
-  const fetchUserProfile = async (userId, userEmail) => {
+  const cargarPerfil = async (userId, userEmail) => {
     try {
-      const { data, error } = await supabase
-        .from('usuarios')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (data) {
-        setUserProfile(data);
-      } else {
-        const nombre = userEmail ? userEmail.split('@')[0] : 'Usuario';
-        setUserProfile({
-          id: userId,
-          nombre,
-          rol: 'cajero',
-          email: userEmail || '',
-          sucursal_id: null,
-        });
-      }
+      const perfil = await authService.cargarPerfil(userId, userEmail);
+      setUserProfile(perfil);
     } catch (error) {
-      console.warn('Error fetching profile from "usuarios" table:', error.message);
-      const nombre = userEmail ? userEmail.split('@')[0] : 'Usuario';
-      setUserProfile({
-        id: userId,
-        nombre,
-        rol: 'cajero',
-        email: userEmail || '',
-        sucursal_id: null,
-      });
+      console.warn('Error al cargar perfil en App.js:', error.message);
     } finally {
       setCheckingAuth(false);
     }
   };
 
-  const handleLoginSuccess = (profile) => {
-    setUserProfile(profile);
+  const handleLoginSuccess = (perfil) => {
+    setUserProfile(perfil);
   };
 
-  // Render a clean dark-themed splash loader while retrieving session state
+  // Splash loader mientras se recupera el estado de sesión
   if (checkingAuth) {
     return (
       <View style={styles.splashContainer}>
@@ -89,19 +61,19 @@ export default function App() {
     );
   }
 
-  // Render main app if user is logged in, else render LoginScreen
+  // Mostrar login si no hay perfil de usuario
   if (!userProfile) {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
   return currentView === 'cajero' ? (
-    <CajeroScreen 
-      userProfile={userProfile} 
+    <CajeroScreen
+      userProfile={userProfile}
       onSwitchView={() => setCurrentView('cocina')}
     />
   ) : (
-    <CocinaScreen 
-      userProfile={userProfile} 
+    <CocinaScreen
+      userProfile={userProfile}
       onSwitchView={() => setCurrentView('cajero')}
     />
   );

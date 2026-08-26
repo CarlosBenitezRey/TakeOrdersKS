@@ -14,189 +14,65 @@ import {
   StatusBar,
   Image,
 } from 'react-native';
-import { supabase } from '../services/supabase';
+import orderService from '../services/OrderService';
+import productService from '../services/ProductService';
+import statsService from '../services/StatsService';
+import authService from '../services/AuthService';
+import PersonalScreen from './admin/PersonalScreen';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../theme/theme';
 import { getProductImage, APP_ICONS, getCategoryIcon } from '../theme/assets';
 
-// Format a number with thousands separator
-const formatPrice = (value) =>
-  value.toLocaleString('es-AR');
+// ─── Utilidades de formato ────────────────────────────────────────────────────
 
-// Helper function to get a category tab emoji (kept simple for the tab bar)
-const getEmojiForCategory = (name) => {
-  const normalized = name.toLowerCase();
-  if (normalized.includes('todos')) return '🍽️';
-  if (normalized.includes('lomito')) return '🥪';
-  if (normalized.includes('hamburguesa') || normalized.includes('burger')) return '🍔';
-  if (normalized.includes('pizza')) return '🍕';
-  if (normalized.includes('papas') || normalized.includes('fritas')) return '🍟';
-  if (normalized.includes('bebida') || normalized.includes('refresco') || normalized.includes('gaseosa')) return '🥤';
-  if (normalized.includes('extra')) return '✨';
-  return '📋';
-};
+const formatPrice = (value) => value.toLocaleString('es-AR');
+
+// ─── Componente Principal ─────────────────────────────────────────────────────
 
 export default function CajeroScreen({ userProfile, onSwitchView }) {
+  // Estado del catálogo
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState('all');
+  const [sucursales, setSucursales] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Estado de búsqueda y filtros
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState('all');
+  const [selectedSucursalId, setSelectedSucursalId] = useState(
+    userProfile?.sucursal_id || 'all'
+  );
+
+  // Estado del carrito y formulario de pedido
   const [carrito, setCarrito] = useState([]);
   const [isCartVisible, setIsCartVisible] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
-  const [statusMessage, setStatusMessage] = useState({ text: '', type: '' });
-
-  // Estados para Menú Lateral y Estadísticas
-  // Estados para Menú Lateral y Estadísticas
-  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
-  const [isStatsVisible, setIsStatsVisible] = useState(false);
-  const [loadingStats, setLoadingStats] = useState(false);
-  const [pedidoAEliminar, setPedidoAEliminar] = useState(null);
-  const [sucursales, setSucursales] = useState([]);
-  const [selectedSucursalId, setSelectedSucursalId] = useState(userProfile?.sucursal_id || 'all');
-  const [stats, setStats] = useState({
-    totalVentas: 0,
-    productosMasVendidos: [],
-    metodosPago: { efectivo: 0, tarjeta: 0, transferencia: 0, pendiente: 0 },
-    transacciones: []
-  });
-
-  // Detalles de pedido y estadísticas de venta
   const [mesa, setMesa] = useState('');
   const [cliente, setCliente] = useState('');
   const [notas, setNotas] = useState('');
   const [metodoPago, setMetodoPago] = useState('efectivo');
 
-  const handleLogout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error.message);
-      showStatus('Error al cerrar sesión', 'error');
-    }
-  };
+  // Estado de UI
+  const [statusMessage, setStatusMessage] = useState({ text: '', type: '' });
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+  const [pedidoAEliminar, setPedidoAEliminar] = useState(null);
 
-  const cargarEstadisticas = async (sucursalIdParam) => {
-    try {
-      setLoadingStats(true);
-      const unMesAtras = new Date();
-      unMesAtras.setDate(unMesAtras.getDate() - 30);
-      const isoString = unMesAtras.toISOString();
+  // Estado de estadísticas (solo admins)
+  const [isStatsVisible, setIsStatsVisible] = useState(false);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [stats, setStats] = useState({
+    totalVentas: 0,
+    productosMasVendidos: [],
+    metodosPago: { efectivo: 0, tarjeta: 0, transferencia: 0, pendiente: 0 },
+    transacciones: [],
+  });
 
-      const targetSucursal = sucursalIdParam !== undefined ? sucursalIdParam : selectedSucursalId;
+  // Estado de módulos admin
+  const [isPersonalVisible, setIsPersonalVisible] = useState(false);
 
-      let query = supabase
-        .from('pedidos')
-        .select(`
-          *,
-          detalle_pedido (
-            cantidad,
-            precio,
-            producto_id,
-            productos (
-              nombre
-            )
-          )
-        `)
-        .gte('created_at', isoString);
+  const esAdmin =
+    userProfile?.rol === 'admin' || userProfile?.nombre === 'carlosrubenrey';
 
-      // Lock filter to userProfile.sucursal_id if it's set
-      if (userProfile?.sucursal_id) {
-        query = query.eq('sucursal_id', userProfile.sucursal_id);
-      } else if (targetSucursal && targetSucursal !== 'all') {
-        query = query.eq('sucursal_id', targetSucursal);
-      }
-
-      const { data: pedidosMes, error: pedidosError } = await query
-        .order('created_at', { ascending: false });
-
-      if (pedidosError) throw pedidosError;
-
-      const items = pedidosMes || [];
-
-      // 1. Total Ventas
-      const totalVentas = items.reduce((sum, p) => sum + (p.total || 0), 0);
-
-      // 2. Métodos de Pago
-      const metodosPago = { efectivo: 0, tarjeta: 0, transferencia: 0, pendiente: 0 };
-      items.forEach((p) => {
-        const met = p.metodo_pago ? p.metodo_pago.toLowerCase() : 'efectivo';
-        if (metodosPago[met] !== undefined) {
-          metodosPago[met] += p.total || 0;
-        }
-      });
-
-      // 3. Productos más vendidos
-      const prodCounts = {};
-      items.forEach((p) => {
-        if (p.detalle_pedido) {
-          p.detalle_pedido.forEach((d) => {
-            const nombreProd = d.productos?.nombre || 'Producto Desconocido';
-            prodCounts[nombreProd] = (prodCounts[nombreProd] || 0) + (d.cantidad || 0);
-          });
-        }
-      });
-
-      const productosMasVendidos = Object.keys(prodCounts)
-        .map((name) => ({ nombre: name, cantidad: prodCounts[name] }))
-        .sort((a, b) => b.cantidad - a.cantidad)
-        .slice(0, 5);
-
-      setStats({
-        totalVentas,
-        productosMasVendidos,
-        metodosPago,
-        transacciones: items
-      });
-
-    } catch (error) {
-      console.error('Error cargando estadísticas:', error.message);
-      showStatus('Error al cargar estadísticas', 'error');
-    } finally {
-      setLoadingStats(false);
-    }
-  };
-
-  const handleEliminarPedido = async (pedidoId) => {
-    try {
-      setLoadingStats(true);
-      // Borrar detalle
-      const { error: dError } = await supabase
-        .from('detalle_pedido')
-        .delete()
-        .eq('pedido_id', pedidoId);
-
-      if (dError) throw dError;
-
-      // Borrar pedido
-      const { error: pError } = await supabase
-        .from('pedidos')
-        .delete()
-        .eq('id', pedidoId);
-
-      if (pError) throw pError;
-
-      showStatus('Pedido eliminado con éxito', 'success');
-      setPedidoAEliminar(null);
-      cargarEstadisticas();
-      cargarDatos();
-    } catch (error) {
-      console.error('Error eliminando pedido:', error.message);
-      showStatus('Error al eliminar el pedido', 'error');
-    } finally {
-      setLoadingStats(false);
-    }
-  };
-
-  const esAdmin = userProfile?.rol === 'admin' || userProfile?.nombre === 'carlosrubenrey';
-
-  const getSucursalName = (sucId) => {
-    if (!sucId) return 'Global';
-    const found = sucursales.find(s => s.id === sucId);
-    return found ? found.nombre : 'Desconocido';
-  };
-
+  // ─── Carga inicial ────────────────────────────────────────────────────────────
 
   useEffect(() => {
     cargarDatos();
@@ -205,24 +81,11 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
   const cargarDatos = async () => {
     try {
       setLoading(true);
-      // Fetch products, categories, and sucursales in parallel
-      const [prodRes, catRes, sucRes] = await Promise.all([
-        supabase.from('productos').select('*'),
-        supabase.from('categorias').select('*'),
-        Promise.resolve(supabase.from('sucursales').select('*')).catch(err => ({ data: [], error: err }))
-      ]);
-
-      if (prodRes.error) throw prodRes.error;
-      if (catRes.error) throw catRes.error;
-
-      setProductos(prodRes.data || []);
-      setSucursales(sucRes?.data || []);
-
-      // Inject a default "Todos" category at the beginning of the list
-      setCategorias([
-        { id: 'all', nombre: 'Todos' },
-        ...(catRes.data || [])
-      ]);
+      // ProductService carga productos, categorías y sucursales en paralelo
+      const { productos, categorias, sucursales } = await productService.cargarCatalogo();
+      setProductos(productos);
+      setCategorias(categorias);
+      setSucursales(sucursales);
     } catch (error) {
       console.error('Error cargando datos:', error.message);
       showStatus('Error al conectar con Supabase', 'error');
@@ -231,105 +94,82 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
     }
   };
 
-  const showStatus = (text, type = 'success') => {
-    setStatusMessage({ text, type });
-    setTimeout(() => {
-      setStatusMessage({ text: '', type: '' });
-    }, 3000);
+  // ─── Estadísticas ─────────────────────────────────────────────────────────────
+
+  const cargarEstadisticas = async (sucursalIdParam) => {
+    try {
+      setLoadingStats(true);
+      const targetSucursal =
+        sucursalIdParam !== undefined ? sucursalIdParam : selectedSucursalId;
+
+      // StatsService maneja toda la lógica de cálculo
+      const resultado = await statsService.cargarEstadisticas(
+        targetSucursal,
+        userProfile?.sucursal_id
+      );
+      setStats(resultado);
+    } catch (error) {
+      console.error('Error cargando estadísticas:', error.message);
+      showStatus('Error al cargar estadísticas', 'error');
+    } finally {
+      setLoadingStats(false);
+    }
   };
 
-  // Add a product to the cart
+  // ─── Handlers del Carrito ─────────────────────────────────────────────────────
+
   const agregarProducto = (producto) => {
-    setCarrito((prevCarrito) => {
-      const existente = prevCarrito.find((item) => item.producto.id === producto.id);
+    setCarrito((prev) => {
+      const existente = prev.find((item) => item.producto.id === producto.id);
       if (existente) {
-        return prevCarrito.map((item) =>
+        return prev.map((item) =>
           item.producto.id === producto.id
             ? { ...item, cantidad: item.cantidad + 1 }
             : item
         );
-      } else {
-        return [...prevCarrito, { producto, cantidad: 1 }];
       }
+      return [...prev, { producto, cantidad: 1 }];
     });
   };
 
-  // Decrease quantity or remove product from the cart
   const disminuirProducto = (producto) => {
-    setCarrito((prevCarrito) => {
-      const existente = prevCarrito.find((item) => item.producto.id === producto.id);
-      if (!existente) return prevCarrito;
-
+    setCarrito((prev) => {
+      const existente = prev.find((item) => item.producto.id === producto.id);
+      if (!existente) return prev;
       if (existente.cantidad > 1) {
-        return prevCarrito.map((item) =>
+        return prev.map((item) =>
           item.producto.id === producto.id
             ? { ...item, cantidad: item.cantidad - 1 }
             : item
         );
-      } else {
-        return prevCarrito.filter((item) => item.producto.id !== producto.id);
       }
+      return prev.filter((item) => item.producto.id !== producto.id);
     });
   };
 
-  // Completely remove product from the cart
   const eliminarProducto = (productoId) => {
-    setCarrito((prevCarrito) => prevCarrito.filter((item) => item.producto.id !== productoId));
+    setCarrito((prev) => prev.filter((item) => item.producto.id !== productoId));
   };
 
-  // Save the entire order to Supabase
+  // ─── Handler de Pedido ────────────────────────────────────────────────────────
+
   const guardarPedido = async () => {
     if (carrito.length === 0) return;
 
     try {
       setSavingOrder(true);
 
-      // Verificar si el perfil del usuario existe en la tabla 'usuarios'
-      // para evitar violar la FK pedidos_usuario_id_fkey
-      let usuarioIdValido = null;
-      if (userProfile?.id) {
-        const { data: perfilCheck } = await supabase
-          .from('usuarios')
-          .select('id')
-          .eq('id', userProfile.id)
-          .single();
-        usuarioIdValido = perfilCheck ? userProfile.id : null;
-      }
+      // OrderService maneja toda la lógica: validación, cálculo de total, FK check y persistencia
+      await orderService.crearPedido(carrito, {
+        mesa,
+        cliente,
+        notas,
+        metodoPago,
+        sucursalId: userProfile?.sucursal_id || null,
+        usuarioId: userProfile?.id || null,
+      });
 
-      // 1. Insert order with advanced details and state 'pendiente' (required by Postgres check constraint)
-      const { data: pedido, error: pedidoError } = await supabase
-        .from('pedidos')
-        .insert({
-          estado: 'pendiente',
-          mesa: mesa.trim() || null,
-          cliente: cliente.trim() || null,
-          notas: notas.trim() || null,
-          total: totalPrecio,
-          metodo_pago: metodoPago,
-          usuario_id: usuarioIdValido,
-          sucursal_id: userProfile?.sucursal_id || null,
-        })
-        .select()
-        .single();
-
-      if (pedidoError) throw pedidoError;
-
-      // 2. Prepare order details
-      const detalles = carrito.map((item) => ({
-        pedido_id: pedido.id,
-        producto_id: item.producto.id,
-        cantidad: item.cantidad,
-        precio: item.producto.precio,
-      }));
-
-      // 3. Insert order details
-      const { error: detallesError } = await supabase
-        .from('detalle_pedido')
-        .insert(detalles);
-
-      if (detallesError) throw detallesError;
-
-      // 4. Success cleanup & reset form
+      // Reset del formulario tras éxito
       setCarrito([]);
       setMesa('');
       setCliente('');
@@ -345,16 +185,58 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
     }
   };
 
-  // Calculate order metrics
-  const totalCantidad = carrito.reduce((sum, item) => sum + item.cantidad, 0);
-  const totalPrecio = carrito.reduce((sum, item) => sum + item.producto.precio * item.cantidad, 0);
+  const handleEliminarPedido = async (pedidoId) => {
+    try {
+      setLoadingStats(true);
+      await orderService.eliminarPedido(pedidoId);
+      showStatus('Pedido eliminado con éxito', 'success');
+      setPedidoAEliminar(null);
+      cargarEstadisticas();
+    } catch (error) {
+      console.error('Error eliminando pedido:', error.message);
+      showStatus('Error al eliminar el pedido', 'error');
+    } finally {
+      setLoadingStats(false);
+    }
+  };
 
-  // Filter products by search query AND category
-  const productosFiltrados = productos.filter((producto) => {
-    const matchesSearch = producto.nombre.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategoryId === 'all' || producto.categoria_id === selectedCategoryId;
-    return matchesSearch && matchesCategory;
-  });
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error.message);
+      showStatus('Error al cerrar sesión', 'error');
+    }
+  };
+
+  // ─── Utilidades de UI ─────────────────────────────────────────────────────────
+
+  const showStatus = (text, type = 'success') => {
+    setStatusMessage({ text, type });
+    setTimeout(() => setStatusMessage({ text: '', type: '' }), 3000);
+  };
+
+  const getSucursalName = (sucId) => {
+    if (!sucId) return 'Global';
+    const found = sucursales.find((s) => s.id === sucId);
+    return found ? found.nombre : 'Desconocido';
+  };
+
+  // Filtrado de productos: delegado a ProductService
+  const productosFiltrados = productService.filtrar(
+    productos,
+    searchQuery,
+    selectedCategoryId
+  );
+
+  // Métricas del carrito (solo cálculos, sin lógica de negocio)
+  const totalCantidad = carrito.reduce((sum, item) => sum + item.cantidad, 0);
+  const totalPrecio = carrito.reduce(
+    (sum, item) => sum + item.producto.precio * item.cantidad,
+    0
+  );
+
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={styles.container}>
@@ -396,18 +278,23 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
           onChangeText={setSearchQuery}
         />
         {searchQuery !== '' && (
-          <TouchableOpacity style={styles.clearSearch} onPress={() => setSearchQuery('')}>
+          <TouchableOpacity
+            style={styles.clearSearch}
+            onPress={() => setSearchQuery('')}
+          >
             <Text style={styles.clearSearchText}>✕</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* BANNER STATUS MESSAGE */}
+      {/* STATUS BANNER */}
       {statusMessage.text !== '' && (
         <View
           style={[
             styles.statusBanner,
-            statusMessage.type === 'error' ? styles.statusBannerError : styles.statusBannerSuccess,
+            statusMessage.type === 'error'
+              ? styles.statusBannerError
+              : styles.statusBannerSuccess,
           ]}
         >
           <Text style={styles.statusBannerText}>{statusMessage.text}</Text>
@@ -452,7 +339,9 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                   {item.nombre}
                 </Text>
                 <View style={styles.priceContainer}>
-                  <Text style={styles.productPrice}>Gs. {formatPrice(item.precio)}</Text>
+                  <Text style={styles.productPrice}>
+                    Gs. {formatPrice(item.precio)}
+                  </Text>
                   <View style={styles.addButton}>
                     <Text style={styles.addButtonText}>+</Text>
                   </View>
@@ -475,7 +364,9 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
               <Text style={styles.cartItemsCountText}>{totalCantidad}</Text>
             </View>
             <Text style={styles.floatingCartText}>Ver Pedido</Text>
-            <Text style={styles.floatingCartTotal}>Gs. {formatPrice(totalPrecio)}</Text>
+            <Text style={styles.floatingCartTotal}>
+              Gs. {formatPrice(totalPrecio)}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -518,7 +409,7 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
         />
       </View>
 
-      {/* CART MODAL (DETALLE DE PEDIDO) */}
+      {/* ── CART MODAL ─────────────────────────────────────────────────────── */}
       <Modal
         visible={isCartVisible}
         animationType="slide"
@@ -527,7 +418,6 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            {/* Modal Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Pedido Actual</Text>
               <TouchableOpacity
@@ -538,7 +428,6 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
               </TouchableOpacity>
             </View>
 
-            {/* Modal Body: Cart Items List */}
             <FlatList
               data={carrito}
               keyExtractor={(item) => item.producto.id.toString()}
@@ -552,7 +441,9 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                       resizeMode="cover"
                     />
                     <View style={styles.cartItemNameContainer}>
-                      <Text style={styles.cartItemName}>{item.producto.nombre}</Text>
+                      <Text style={styles.cartItemName}>
+                        {item.producto.nombre}
+                      </Text>
                       <Text style={styles.cartItemPrice}>
                         Gs. {formatPrice(item.producto.precio)} c/u
                       </Text>
@@ -583,9 +474,10 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
               )}
               ListFooterComponent={
                 <View style={styles.modalFormContainer}>
-                  <Text style={styles.formSectionTitle}>Información del Pedido</Text>
+                  <Text style={styles.formSectionTitle}>
+                    Información del Pedido
+                  </Text>
 
-                  {/* Mesa and Cliente */}
                   <View style={styles.formRow}>
                     <View style={styles.formHalfInputWrapper}>
                       <Text style={styles.formInputLabel}>Mesa / Destino</Text>
@@ -598,7 +490,9 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                       />
                     </View>
                     <View style={styles.formHalfInputWrapper}>
-                      <Text style={styles.formInputLabel}>Cliente (Opcional)</Text>
+                      <Text style={styles.formInputLabel}>
+                        Cliente (Opcional)
+                      </Text>
                       <TextInput
                         style={styles.formInput}
                         placeholder="Ej. Juan Pérez"
@@ -609,56 +503,41 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                     </View>
                   </View>
 
-                  {/* Método de Pago */}
-                  <Text style={styles.formInputLabel}>Método de Pago (Estadísticas)</Text>
+                  <Text style={styles.formInputLabel}>
+                    Método de Pago (Estadísticas)
+                  </Text>
                   <View style={styles.paymentSelector}>
-                    <TouchableOpacity
-                      style={[
-                        styles.paymentOption,
-                        metodoPago === 'efectivo' && styles.paymentOptionSelected,
-                      ]}
-                      onPress={() => setMetodoPago('efectivo')}
-                    >
-                      <Text style={[styles.paymentOptionText, metodoPago === 'efectivo' && styles.paymentOptionTextSelected]}>
-                        Efectivo
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.paymentOption,
-                        metodoPago === 'tarjeta' && styles.paymentOptionSelected,
-                      ]}
-                      onPress={() => setMetodoPago('tarjeta')}
-                    >
-                      <Text style={[styles.paymentOptionText, metodoPago === 'tarjeta' && styles.paymentOptionTextSelected]}>
-                        Tarjeta
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.paymentOption,
-                        metodoPago === 'transferencia' && styles.paymentOptionSelected,
-                      ]}
-                      onPress={() => setMetodoPago('transferencia')}
-                    >
-                      <Text style={[styles.paymentOptionText, metodoPago === 'transferencia' && styles.paymentOptionTextSelected]}>
-                        Transfer
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.paymentOption,
-                        metodoPago === 'pendiente' && styles.paymentOptionSelected,
-                      ]}
-                      onPress={() => setMetodoPago('pendiente')}
-                    >
-                      <Text style={[styles.paymentOptionText, metodoPago === 'pendiente' && styles.paymentOptionTextSelected]}>
-                        Deber
-                      </Text>
-                    </TouchableOpacity>
+                    {['efectivo', 'tarjeta', 'transferencia', 'pendiente'].map(
+                      (metodo) => (
+                        <TouchableOpacity
+                          key={metodo}
+                          style={[
+                            styles.paymentOption,
+                            metodoPago === metodo &&
+                              styles.paymentOptionSelected,
+                          ]}
+                          onPress={() => setMetodoPago(metodo)}
+                        >
+                          <Text
+                            style={[
+                              styles.paymentOptionText,
+                              metodoPago === metodo &&
+                                styles.paymentOptionTextSelected,
+                            ]}
+                          >
+                            {metodo === 'efectivo'
+                              ? 'Efectivo'
+                              : metodo === 'tarjeta'
+                              ? 'Tarjeta'
+                              : metodo === 'transferencia'
+                              ? 'Transfer'
+                              : 'Deber'}
+                          </Text>
+                        </TouchableOpacity>
+                      )
+                    )}
                   </View>
 
-                  {/* Notas de Cocina */}
                   <Text style={styles.formInputLabel}>Notas del Pedido</Text>
                   <TextInput
                     style={[styles.formInput, styles.notesInput]}
@@ -673,15 +552,18 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
               }
             />
 
-            {/* Modal Footer */}
             <View style={styles.modalFooter}>
               <View style={styles.modalTotalRow}>
                 <Text style={styles.modalTotalLabel}>Total a pagar:</Text>
-                <Text style={styles.modalTotalValue}>Gs. {formatPrice(totalPrecio)}</Text>
+                <Text style={styles.modalTotalValue}>
+                  Gs. {formatPrice(totalPrecio)}
+                </Text>
               </View>
-
               <TouchableOpacity
-                style={[styles.checkoutButton, savingOrder && styles.checkoutButtonDisabled]}
+                style={[
+                  styles.checkoutButton,
+                  savingOrder && styles.checkoutButtonDisabled,
+                ]}
                 disabled={savingOrder}
                 onPress={guardarPedido}
               >
@@ -698,7 +580,7 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
         </View>
       </Modal>
 
-      {/* DRAWER MODAL — MENU DESPLEGABLE LATERAL */}
+      {/* ── DRAWER MODAL (Menú lateral) ─────────────────────────────────────── */}
       <Modal
         visible={isDrawerVisible}
         animationType="slide"
@@ -710,13 +592,13 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
           activeOpacity={1}
           onPress={() => setIsDrawerVisible(false)}
         >
-          <TouchableOpacity
-            style={styles.drawerContainer}
-            activeOpacity={1}
-          >
+          <TouchableOpacity style={styles.drawerContainer} activeOpacity={1}>
             <View style={styles.drawerHeader}>
               <Text style={styles.drawerTitle}>Menú</Text>
-              <TouchableOpacity onPress={() => setIsDrawerVisible(false)} style={styles.drawerCloseButton}>
+              <TouchableOpacity
+                onPress={() => setIsDrawerVisible(false)}
+                style={styles.drawerCloseButton}
+              >
                 <Text style={styles.drawerCloseText}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -727,8 +609,12 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                 style={styles.drawerProfileIconImage}
                 resizeMode="contain"
               />
-              <Text style={styles.drawerProfileName}>{userProfile?.nombre || 'Invitado'}</Text>
-              <Text style={styles.drawerProfileRole}>{userProfile?.rol?.toUpperCase() || 'CAJERO'}</Text>
+              <Text style={styles.drawerProfileName}>
+                {userProfile?.nombre || 'Invitado'}
+              </Text>
+              <Text style={styles.drawerProfileRole}>
+                {userProfile?.rol?.toUpperCase() || 'CAJERO'}
+              </Text>
             </View>
 
             <View style={styles.drawerDivider} />
@@ -767,21 +653,42 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
               </TouchableOpacity>
 
               {esAdmin && (
-                <TouchableOpacity
-                  style={styles.drawerOption}
-                  onPress={() => {
-                    setIsDrawerVisible(false);
-                    setIsStatsVisible(true);
-                    cargarEstadisticas();
-                  }}
-                >
-                  <Image
-                    source={APP_ICONS.statistics}
-                    style={styles.drawerOptionIconImage}
-                    resizeMode="contain"
-                  />
-                  <Text style={styles.drawerOptionText}>Estadísticas (Admin)</Text>
-                </TouchableOpacity>
+                <>
+                  <TouchableOpacity
+                    style={styles.drawerOption}
+                    onPress={() => {
+                      setIsDrawerVisible(false);
+                      setIsStatsVisible(true);
+                      cargarEstadisticas();
+                    }}
+                  >
+                    <Image
+                      source={APP_ICONS.statistics}
+                      style={styles.drawerOptionIconImage}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.drawerOptionText}>
+                      Estadísticas (Admin)
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.drawerOption}
+                    onPress={() => {
+                      setIsDrawerVisible(false);
+                      setIsPersonalVisible(true);
+                    }}
+                  >
+                    <Image
+                      source={APP_ICONS.userDefault}
+                      style={[styles.drawerOptionIconImage, { tintColor: '#63B3ED' }]}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.drawerOptionText}>
+                      Gestión de Personal
+                    </Text>
+                  </TouchableOpacity>
+                </>
               )}
 
               <TouchableOpacity
@@ -793,10 +700,15 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
               >
                 <Image
                   source={APP_ICONS.logout}
-                  style={[styles.drawerOptionIconImage, { tintColor: COLORS.danger }]}
+                  style={[
+                    styles.drawerOptionIconImage,
+                    { tintColor: COLORS.danger },
+                  ]}
                   resizeMode="contain"
                 />
-                <Text style={[styles.drawerOptionText, { color: COLORS.danger }]}>Cerrar Sesión</Text>
+                <Text style={[styles.drawerOptionText, { color: COLORS.danger }]}>
+                  Cerrar Sesión
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -807,7 +719,7 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
         </TouchableOpacity>
       </Modal>
 
-      {/* STATS MODAL — ESTADISTICAS ADMIN */}
+      {/* ── STATS MODAL (Admin) ─────────────────────────────────────────────── */}
       <Modal
         visible={isStatsVisible}
         animationType="slide"
@@ -828,25 +740,34 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
           {loadingStats ? (
             <View style={styles.statsLoader}>
               <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={styles.statsLoaderText}>Calculando ventas e inventario...</Text>
+              <Text style={styles.statsLoaderText}>
+                Calculando ventas e inventario...
+              </Text>
             </View>
           ) : (
-            <ScrollView style={styles.statsContentContainer} contentContainerStyle={{ paddingBottom: 40 }}>
-              {/* RANGO DE FECHA */}
+            <ScrollView
+              style={styles.statsContentContainer}
+              contentContainerStyle={{ paddingBottom: 40 }}
+            >
               <View style={styles.statsDateRangeCard}>
                 <Text style={styles.statsDateRangeLabel}>Periodo Auditado:</Text>
                 <Text style={styles.statsDateRangeValue}>Últimos 30 días</Text>
               </View>
 
-              {/* SELECTOR DE SUCURSAL (Solo para Administrador General) */}
+              {/* SELECTOR DE SUCURSAL (Solo admin global) */}
               {!userProfile?.sucursal_id && sucursales.length > 0 && (
                 <View style={styles.sucursalFilterCard}>
                   <Text style={styles.sucursalFilterLabel}>Filtrar por Local:</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sucursalFilterList}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.sucursalFilterList}
+                  >
                     <TouchableOpacity
                       style={[
                         styles.sucursalFilterButton,
-                        selectedSucursalId === 'all' && styles.sucursalFilterButtonSelected,
+                        selectedSucursalId === 'all' &&
+                          styles.sucursalFilterButtonSelected,
                       ]}
                       onPress={() => {
                         setSelectedSucursalId('all');
@@ -856,7 +777,8 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                       <Text
                         style={[
                           styles.sucursalFilterButtonText,
-                          selectedSucursalId === 'all' && styles.sucursalFilterButtonTextSelected,
+                          selectedSucursalId === 'all' &&
+                            styles.sucursalFilterButtonTextSelected,
                         ]}
                       >
                         Todas
@@ -867,7 +789,8 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                         key={suc.id}
                         style={[
                           styles.sucursalFilterButton,
-                          selectedSucursalId === suc.id && styles.sucursalFilterButtonSelected,
+                          selectedSucursalId === suc.id &&
+                            styles.sucursalFilterButtonSelected,
                         ]}
                         onPress={() => {
                           setSelectedSucursalId(suc.id);
@@ -877,7 +800,8 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                         <Text
                           style={[
                             styles.sucursalFilterButtonText,
-                            selectedSucursalId === suc.id && styles.sucursalFilterButtonTextSelected,
+                            selectedSucursalId === suc.id &&
+                              styles.sucursalFilterButtonTextSelected,
                           ]}
                         >
                           {suc.nombre}
@@ -888,28 +812,42 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                 </View>
               )}
 
-              {/* KPI CARD: Ingresos totales */}
+              {/* KPI: Ingresos Totales */}
               <View style={styles.kpiCard}>
                 <Text style={styles.kpiLabel}>INGRESOS TOTALES</Text>
-                <Text style={styles.kpiValue}>Gs. {formatPrice(stats.totalVentas)}</Text>
+                <Text style={styles.kpiValue}>
+                  Gs. {formatPrice(stats.totalVentas)}
+                </Text>
                 <Text style={styles.kpiSub}>Último mes acumulado</Text>
               </View>
 
-              {/* METODOS DE PAGO */}
+              {/* Métodos de Pago */}
               <View style={styles.statsSectionCard}>
                 <Text style={styles.statsSectionTitle}>Métodos de Pago</Text>
                 <View style={styles.paymentProgressContainer}>
                   {Object.keys(stats.metodosPago).map((metodo) => {
                     const monto = stats.metodosPago[metodo] || 0;
-                    const porcentaje = stats.totalVentas > 0 ? (monto / stats.totalVentas) * 100 : 0;
+                    const porcentaje =
+                      stats.totalVentas > 0
+                        ? (monto / stats.totalVentas) * 100
+                        : 0;
                     return (
                       <View key={metodo} style={styles.paymentProgressItem}>
                         <View style={styles.paymentProgressHeader}>
-                          <Text style={styles.paymentProgressLabel}>{metodo.charAt(0).toUpperCase() + metodo.slice(1)}</Text>
-                          <Text style={styles.paymentProgressValue}>Gs. {formatPrice(monto)} ({porcentaje.toFixed(0)}%)</Text>
+                          <Text style={styles.paymentProgressLabel}>
+                            {metodo.charAt(0).toUpperCase() + metodo.slice(1)}
+                          </Text>
+                          <Text style={styles.paymentProgressValue}>
+                            Gs. {formatPrice(monto)} ({porcentaje.toFixed(0)}%)
+                          </Text>
                         </View>
                         <View style={styles.progressBarBg}>
-                          <View style={[styles.progressBarFill, { width: `${porcentaje}%` }]} />
+                          <View
+                            style={[
+                              styles.progressBarFill,
+                              { width: `${porcentaje}%` },
+                            ]}
+                          />
                         </View>
                       </View>
                     );
@@ -917,11 +855,15 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                 </View>
               </View>
 
-              {/* PRODUCTOS MAS VENDIDOS */}
+              {/* Top 5 Productos */}
               <View style={styles.statsSectionCard}>
-                <Text style={styles.statsSectionTitle}>Top 5 Productos Más Vendidos</Text>
+                <Text style={styles.statsSectionTitle}>
+                  Top 5 Productos Más Vendidos
+                </Text>
                 {stats.productosMasVendidos.length === 0 ? (
-                  <Text style={styles.noDataText}>No hay datos registrados aún.</Text>
+                  <Text style={styles.noDataText}>
+                    No hay datos registrados aún.
+                  </Text>
                 ) : (
                   stats.productosMasVendidos.map((prod, index) => (
                     <View key={index} style={styles.topProductRow}>
@@ -933,36 +875,53 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                 )}
               </View>
 
-              {/* HISTORIAL DE MOVIMIENTOS */}
+              {/* Historial de Movimientos */}
               <View style={styles.statsSectionCard}>
-                <Text style={styles.statsSectionTitle}>Historial de Movimientos</Text>
-                <Text style={styles.statsSectionSubTitle}>Toca el botón rojo para borrar un registro erróneo</Text>
-
+                <Text style={styles.statsSectionTitle}>
+                  Historial de Movimientos
+                </Text>
+                <Text style={styles.statsSectionSubTitle}>
+                  Toca el botón rojo para borrar un registro erróneo
+                </Text>
                 {stats.transacciones.length === 0 ? (
-                  <Text style={styles.noDataText}>No hay transacciones este mes.</Text>
+                  <Text style={styles.noDataText}>
+                    No hay transacciones este mes.
+                  </Text>
                 ) : (
                   stats.transacciones.map((pedido) => (
                     <View key={pedido.id} style={styles.transactionCard}>
                       <View style={styles.transactionMainInfo}>
-                        <Text style={styles.transactionId}>Pedido #{pedido.id.toString().slice(0, 8).toUpperCase()}</Text>
+                        <Text style={styles.transactionId}>
+                          Pedido #{pedido.id.toString().slice(0, 8).toUpperCase()}
+                        </Text>
                         <Text style={styles.transactionDate}>
-                          {new Date(pedido.created_at).toLocaleDateString()} - {new Date(pedido.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(pedido.created_at).toLocaleDateString()} -{' '}
+                          {new Date(pedido.created_at).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
                         </Text>
                         <Text style={styles.transactionDetails}>
-                          {pedido.mesa ? `Mesa: ${pedido.mesa}` : ''} {pedido.cliente ? ` | Cliente: ${pedido.cliente}` : ''}
+                          {pedido.mesa ? `Mesa: ${pedido.mesa}` : ''}
+                          {pedido.cliente ? ` | Cliente: ${pedido.cliente}` : ''}
                         </Text>
                         <Text style={styles.transactionPayType}>
-                          Pago: {pedido.metodo_pago?.toUpperCase()} {!userProfile?.sucursal_id && ` | Local: ${getSucursalName(pedido.sucursal_id)}`}
+                          Pago: {pedido.metodo_pago?.toUpperCase()}
+                          {!userProfile?.sucursal_id &&
+                            ` | Local: ${getSucursalName(pedido.sucursal_id)}`}
                         </Text>
                       </View>
                       <View style={styles.transactionRightInfo}>
-                        <Text style={styles.transactionTotal}>Gs. {formatPrice(pedido.total || 0)}</Text>
-
+                        <Text style={styles.transactionTotal}>
+                          Gs. {formatPrice(pedido.total || 0)}
+                        </Text>
                         <TouchableOpacity
                           style={styles.deleteTransactionButton}
                           onPress={() => setPedidoAEliminar(pedido.id)}
                         >
-                          <Text style={styles.deleteTransactionText}>🗑️ Borrar</Text>
+                          <Text style={styles.deleteTransactionText}>
+                            🗑️ Borrar
+                          </Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -974,7 +933,7 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
         </SafeAreaView>
       </Modal>
 
-      {/* CONFIRM DELETE DIALOG */}
+      {/* ── CONFIRM DELETE DIALOG ───────────────────────────────────────────── */}
       <Modal
         visible={pedidoAEliminar !== null}
         transparent={true}
@@ -986,7 +945,8 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
             <Text style={styles.confirmEmoji}>⚠️</Text>
             <Text style={styles.confirmTitle}>¿Eliminar este pedido?</Text>
             <Text style={styles.confirmText}>
-              Esta acción es permanente. Se descontará del historial de ventas de este mes y desaparecerá de la cocina.
+              Esta acción es permanente. Se descontará del historial de ventas de
+              este mes y desaparecerá de la cocina.
             </Text>
             <View style={styles.confirmButtons}>
               <TouchableOpacity
@@ -1005,9 +965,24 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
           </View>
         </View>
       </Modal>
+
+      {/* ── PERSONAL SCREEN MODAL (Admin) ───────────────────────────────────── */}
+      <Modal
+        visible={isPersonalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setIsPersonalVisible(false)}
+      >
+        <PersonalScreen
+          userProfile={userProfile}
+          onClose={() => setIsPersonalVisible(false)}
+        />
+      </Modal>
     </SafeAreaView>
   );
 }
+
+// ─── Estilos ─────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
@@ -1076,22 +1051,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 13,
   },
-  cocinaButton: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+  menuButton: {
+    paddingVertical: SPACING.xs + 2,
     paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 40,
   },
-  cocinaButtonText: {
-    color: COLORS.textLight,
+  menuButtonText: {
+    color: COLORS.text,
     fontWeight: '700',
     fontSize: 14,
-  },
-  reloadButton: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: COLORS.success,
-  },
-  reloadButtonText: {
-    fontSize: 18,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -1227,9 +1201,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
-    // Android Shadow
     elevation: 8,
-    // iOS Shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -1302,6 +1274,7 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '800',
   },
+  // Cart Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: COLORS.overlay,
@@ -1400,6 +1373,11 @@ const styles = StyleSheet.create({
   removeCartItemButton: {
     marginLeft: SPACING.md,
     padding: SPACING.xs,
+  },
+  removeCartItemButtonText: {
+    color: COLORS.danger,
+    fontSize: 16,
+    fontWeight: '700',
   },
   modalFooter: {
     paddingHorizontal: SPACING.lg,
@@ -1509,26 +1487,7 @@ const styles = StyleSheet.create({
     color: COLORS.success,
     fontWeight: '800',
   },
-
-  // Estilos para el menú en cabecera
-  menuButton: {
-    paddingVertical: SPACING.xs + 2,
-    paddingHorizontal: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: 40,
-  },
-  menuButtonText: {
-    color: COLORS.text,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-
-  // Estilos para el Drawer Modal (Menú lateral)
+  // Drawer Modal
   drawerOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.75)',
@@ -1620,8 +1579,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
   },
-
-  // Estilos para el Modal de Estadísticas
+  // Stats Modal
   statsScreenContainer: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -1845,8 +1803,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-
-  // Modal Confirmación Eliminar
+  // Confirm Delete Dialog
   confirmOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.8)',
@@ -1945,5 +1902,22 @@ const styles = StyleSheet.create({
   sucursalFilterButtonTextSelected: {
     color: COLORS.textLight,
     fontWeight: '800',
+  },
+  cocinaButton: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+    paddingHorizontal: SPACING.md,
+  },
+  cocinaButtonText: {
+    color: COLORS.textLight,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  reloadButton: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: COLORS.success,
+  },
+  reloadButtonText: {
+    fontSize: 18,
   },
 });

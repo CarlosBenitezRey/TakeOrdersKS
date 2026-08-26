@@ -12,35 +12,84 @@ import {
   ScrollView,
   Modal,
 } from 'react-native';
-import { supabase } from '../services/supabase';
+import orderService from '../services/OrderService';
+import authService from '../services/AuthService';
+import productoRepository from '../repositories/ProductoRepository';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../theme/theme';
 
 export default function CocinaScreen({ userProfile, onSwitchView }) {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pedidoAEliminar, setPedidoAEliminar] = useState(null);
+  const [sucursales, setSucursales] = useState([]);
+  const [selectedSucursalId, setSelectedSucursalId] = useState(
+    userProfile?.sucursal_id || 'all'
+  );
+
+  // ─── Carga inicial y suscripción Realtime ────────────────────────────────────
+
+  useEffect(() => {
+    // Si el usuario no tiene sucursal asignada (admin), cargar la lista de sucursales
+    if (!userProfile?.sucursal_id) {
+      productoRepository
+        .getSucursales()
+        .then((data) => setSucursales(data))
+        .catch((err) => console.log('Error cargando sucursales en Cocina:', err));
+    }
+  }, []);
+
+  useEffect(() => {
+    cargarPedidos(selectedSucursalId);
+
+    // Suscribir a cambios en tiempo real
+    const channel = orderService.suscribirCambiosPedidos(() => {
+      cargarPedidos(selectedSucursalId);
+    });
+
+    return () => orderService.cancelarSuscripcion(channel);
+  }, [selectedSucursalId]);
+
+  // ─── Handlers de datos ───────────────────────────────────────────────────────
+
+  const cargarPedidos = async (sucursalId) => {
+    try {
+      setLoading(true);
+      const data = await orderService.getPedidosActivos(
+        sucursalId,
+        userProfile?.sucursal_id
+      );
+      setPedidos(data);
+    } catch (error) {
+      console.error('Error cargando pedidos:', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const actualizarEstadoPedido = async (pedidoId, estadoActual, nuevoEstado) => {
+    try {
+      await orderService.cambiarEstado(pedidoId, estadoActual, nuevoEstado);
+
+      // Actualización optimista del estado local
+      if (nuevoEstado === 'entregado') {
+        setPedidos((current) => current.filter((p) => p.id !== pedidoId));
+      } else {
+        setPedidos((current) =>
+          current.map((p) =>
+            p.id === pedidoId ? { ...p, estado: nuevoEstado } : p
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Error actualizando estado:', error.message);
+    }
+  };
 
   const handleEliminarPedido = async (pedidoId) => {
     try {
       setLoading(true);
-      // Borrar detalle
-      const { error: dError } = await supabase
-        .from('detalle_pedido')
-        .delete()
-        .eq('pedido_id', pedidoId);
-
-      if (dError) throw dError;
-
-      // Borrar pedido
-      const { error: pError } = await supabase
-        .from('pedidos')
-        .delete()
-        .eq('id', pedidoId);
-
-      if (pError) throw pError;
-
-      // Actualizar estado local
-      setPedidos(current => current.filter(p => p.id !== pedidoId));
+      await orderService.eliminarPedido(pedidoId);
+      setPedidos((current) => current.filter((p) => p.id !== pedidoId));
       setPedidoAEliminar(null);
     } catch (error) {
       console.error('Error eliminando pedido:', error.message);
@@ -49,168 +98,116 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
     }
   };
 
-  const [sucursales, setSucursales] = useState([]);
-  const [selectedSucursalId, setSelectedSucursalId] = useState(userProfile?.sucursal_id || 'all');
-
-  useEffect(() => {
-    // If admin/no sucursal assigned, fetch the list of sucursales
-    if (!userProfile?.sucursal_id) {
-      supabase
-        .from('sucursales')
-        .select('*')
-        .then(({ data }) => {
-          if (data) setSucursales(data);
-        })
-        .catch(err => console.log('Error loading sucursales in Cocina:', err));
-    }
-  }, []);
-
-  useEffect(() => {
-    cargarPedidos(selectedSucursalId);
-
-    // Subscribe to realtime changes on the pedidos table
-    const subscription = supabase
-      .channel('pedidos_channel')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
-          schema: 'public',
-          table: 'pedidos',
-        },
-        (payload) => {
-          console.log('Cambio en pedidos:', payload);
-          cargarPedidos(selectedSucursalId);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(subscription);
-    };
-  }, [selectedSucursalId]);
-
-  const cargarPedidos = async (targetSucursalId) => {
+  const handleLogout = async () => {
     try {
-      setLoading(true);
-      const target = targetSucursalId !== undefined ? targetSucursalId : selectedSucursalId;
-
-      let query = supabase
-        .from('pedidos')
-        .select(`
-          *,
-          detalle_pedido (
-            cantidad,
-            precio,
-            productos (
-              nombre
-            )
-          )
-        `)
-        .in('estado', ['pendiente', 'listo']);
-
-      // Filter by sucursal
-      if (userProfile?.sucursal_id) {
-        query = query.eq('sucursal_id', userProfile.sucursal_id);
-      } else if (target && target !== 'all') {
-        query = query.eq('sucursal_id', target);
-      }
-
-      const { data, error } = await query.order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setPedidos(data || []);
+      await authService.logout();
     } catch (error) {
-      console.error('Error cargando pedidos:', error.message);
-    } finally {
-      setLoading(false);
+      console.error('Error al cerrar sesión:', error.message);
     }
   };
 
-  const actualizarEstadoPedido = async (pedidoId, nuevoEstado) => {
-    try {
-      const { error } = await supabase
-        .from('pedidos')
-        .update({ estado: nuevoEstado })
-        .eq('id', pedidoId);
-
-      if (error) throw error;
-
-      // The realtime subscription will trigger a reload, but we can do an optimistic update
-      setPedidos(current =>
-        current.map(p => p.id === pedidoId ? { ...p, estado: nuevoEstado } : p)
-      );
-
-      if (nuevoEstado === 'entregado') {
-        // If it's delivered, we can remove it from the screen optimistically
-        setPedidos(current => current.filter(p => p.id !== pedidoId));
-      }
-    } catch (error) {
-      console.error('Error actualizando estado:', error.message);
-    }
-  };
+  // ─── Utilidades de UI ─────────────────────────────────────────────────────────
 
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error.message);
-    }
-  };
+  const pendientes = pedidos.filter((p) => p.estado === 'pendiente');
+  const listos = pedidos.filter((p) => p.estado === 'listo');
 
-  const pendientes = pedidos.filter(p => p.estado === 'pendiente');
-  const listos = pedidos.filter(p => p.estado === 'listo');
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   const renderPedido = ({ item }) => {
     const isPendiente = item.estado === 'pendiente';
     const textColor = isPendiente ? '#000000' : '#FFFFFF';
     const textMutedColor = isPendiente ? '#555555' : '#F3F4F6';
-    
+
     return (
       <View style={[styles.pedidoCard, !isPendiente && styles.pedidoCardListo]}>
         <View style={styles.pedidoHeader}>
-          <Text style={[styles.pedidoId, { color: textColor }]}>Pedido #{item.id.toString().slice(0, 5).toUpperCase()}</Text>
-          <Text style={[styles.pedidoTime, { color: textMutedColor }]}>{formatTime(item.created_at)}</Text>
+          <Text style={[styles.pedidoId, { color: textColor }]}>
+            Pedido #{item.id.toString().slice(0, 5).toUpperCase()}
+          </Text>
+          <Text style={[styles.pedidoTime, { color: textMutedColor }]}>
+            {formatTime(item.created_at)}
+          </Text>
         </View>
 
         <View style={styles.pedidoInfo}>
           {item.mesa ? (
-            <Text style={[styles.pedidoMetaText, { color: textColor, backgroundColor: isPendiente ? '#E5E7EB' : 'rgba(255, 255, 255, 0.2)' }]}>
+            <Text
+              style={[
+                styles.pedidoMetaText,
+                {
+                  color: textColor,
+                  backgroundColor: isPendiente ? '#E5E7EB' : 'rgba(255, 255, 255, 0.2)',
+                },
+              ]}
+            >
               Mesa: {item.mesa}
             </Text>
           ) : null}
           {item.cliente ? (
-            <Text style={[styles.pedidoMetaText, { color: textColor, backgroundColor: isPendiente ? '#E5E7EB' : 'rgba(255, 255, 255, 0.2)' }]}>
+            <Text
+              style={[
+                styles.pedidoMetaText,
+                {
+                  color: textColor,
+                  backgroundColor: isPendiente ? '#E5E7EB' : 'rgba(255, 255, 255, 0.2)',
+                },
+              ]}
+            >
               Cliente: {item.cliente}
             </Text>
           ) : null}
         </View>
 
-        <View style={[styles.divider, { backgroundColor: isPendiente ? '#000000' : '#FFFFFF', opacity: isPendiente ? 0.2 : 0.4 }]} />
+        <View
+          style={[
+            styles.divider,
+            {
+              backgroundColor: isPendiente ? '#000000' : '#FFFFFF',
+              opacity: isPendiente ? 0.2 : 0.4,
+            },
+          ]}
+        />
 
         <View style={styles.detallesContainer}>
           {item.detalle_pedido?.map((detalle, index) => (
             <View key={index} style={styles.detalleItem}>
-              <Text style={[styles.detalleCantidad, { color: isPendiente ? COLORS.primary : '#FFFFFF' }]}>{detalle.cantidad}x</Text>
-              <Text style={[styles.detalleNombre, { color: textColor }]}>{detalle.productos?.nombre}</Text>
+              <Text
+                style={[
+                  styles.detalleCantidad,
+                  { color: isPendiente ? COLORS.primary : '#FFFFFF' },
+                ]}
+              >
+                {detalle.cantidad}x
+              </Text>
+              <Text style={[styles.detalleNombre, { color: textColor }]}>
+                {detalle.productos?.nombre}
+              </Text>
             </View>
           ))}
         </View>
 
         {item.notas ? (
-          <View style={[
-            styles.notasContainer, 
-            { 
-              backgroundColor: isPendiente ? 'rgba(234, 179, 8, 0.15)' : 'rgba(255, 255, 255, 0.15)',
-              borderColor: isPendiente ? 'rgba(234, 179, 8, 0.4)' : 'rgba(255, 255, 255, 0.4)'
-            }
-          ]}>
-            <Text style={[styles.notasTitle, { color: isPendiente ? '#D97706' : '#FFFFFF' }]}>Notas:</Text>
+          <View
+            style={[
+              styles.notasContainer,
+              {
+                backgroundColor: isPendiente
+                  ? 'rgba(234, 179, 8, 0.15)'
+                  : 'rgba(255, 255, 255, 0.15)',
+                borderColor: isPendiente
+                  ? 'rgba(234, 179, 8, 0.4)'
+                  : 'rgba(255, 255, 255, 0.4)',
+              },
+            ]}
+          >
+            <Text style={[styles.notasTitle, { color: isPendiente ? '#D97706' : '#FFFFFF' }]}>
+              Notas:
+            </Text>
             <Text style={[styles.notasText, { color: textColor }]}>{item.notas}</Text>
           </View>
         ) : null}
@@ -226,7 +223,7 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionButton, styles.buttonListo]}
-                onPress={() => actualizarEstadoPedido(item.id, 'listo')}
+                onPress={() => actualizarEstadoPedido(item.id, 'pendiente', 'listo')}
               >
                 <Text style={styles.actionButtonText}>Marcar como Listo</Text>
               </TouchableOpacity>
@@ -234,9 +231,11 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
           ) : (
             <TouchableOpacity
               style={[styles.actionButton, styles.buttonEntregado]}
-              onPress={() => actualizarEstadoPedido(item.id, 'entregado')}
+              onPress={() => actualizarEstadoPedido(item.id, 'listo', 'entregado')}
             >
-              <Text style={[styles.actionButtonText, { color: COLORS.success }]}>Entregado (Quitar)</Text>
+              <Text style={[styles.actionButtonText, { color: COLORS.success }]}>
+                Entregado (Quitar)
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -280,7 +279,11 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
           {!userProfile?.sucursal_id && sucursales.length > 0 && (
             <View style={styles.sucursalFilterCard}>
               <Text style={styles.sucursalFilterLabel}>Monitorear Local:</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sucursalFilterList}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.sucursalFilterList}
+              >
                 <TouchableOpacity
                   style={[
                     styles.sucursalFilterButton,
@@ -309,7 +312,8 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
                     <Text
                       style={[
                         styles.sucursalFilterButtonText,
-                        selectedSucursalId === suc.id && styles.sucursalFilterButtonTextSelected,
+                        selectedSucursalId === suc.id &&
+                          styles.sucursalFilterButtonTextSelected,
                       ]}
                     >
                       {suc.nombre}
@@ -326,20 +330,22 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
           ) : (
             <FlatList
               data={pendientes}
-              keyExtractor={item => item.id.toString()}
+              keyExtractor={(item) => item.id.toString()}
               renderItem={renderPedido}
               scrollEnabled={false}
               contentContainerStyle={styles.listContainer}
             />
           )}
 
-          <Text style={[styles.sectionTitle, styles.sectionTitleListo]}>Listos para Entregar ({listos.length})</Text>
+          <Text style={[styles.sectionTitle, styles.sectionTitleListo]}>
+            Listos para Entregar ({listos.length})
+          </Text>
           {listos.length === 0 ? (
             <Text style={styles.emptyText}>No hay pedidos listos esperando entrega</Text>
           ) : (
             <FlatList
               data={listos}
-              keyExtractor={item => item.id.toString()}
+              keyExtractor={(item) => item.id.toString()}
               renderItem={renderPedido}
               scrollEnabled={false}
               contentContainerStyle={styles.listContainer}
@@ -347,6 +353,7 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
           )}
         </ScrollView>
       )}
+
       {/* CONFIRM DELETE DIALOG */}
       <Modal
         visible={pedidoAEliminar !== null}
@@ -362,14 +369,14 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
               Esta acción es permanente. Desaparecerá de la cocina y se anulará.
             </Text>
             <View style={styles.confirmButtons}>
-              <TouchableOpacity 
-                style={[styles.confirmBtn, styles.confirmBtnCancel]} 
+              <TouchableOpacity
+                style={[styles.confirmBtn, styles.confirmBtnCancel]}
                 onPress={() => setPedidoAEliminar(null)}
               >
                 <Text style={styles.confirmBtnCancelText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.confirmBtn, styles.confirmBtnDelete]} 
+              <TouchableOpacity
+                style={[styles.confirmBtn, styles.confirmBtnDelete]}
                 onPress={() => handleEliminarPedido(pedidoAEliminar)}
               >
                 <Text style={styles.confirmBtnDeleteText}>Sí, Eliminar</Text>
@@ -451,7 +458,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...TYPOGRAPHY.h2,
-    color: COLORS.text, // White for pending section
+    color: COLORS.text,
     marginBottom: SPACING.sm,
     marginTop: SPACING.md,
   },
@@ -476,7 +483,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#000000',
     marginBottom: SPACING.md,
-    // Soft shadow for contrast
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -588,7 +594,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.danger,
     borderWidth: 1,
   },
-  // Modal Confirmación Eliminar
   confirmOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.8)',

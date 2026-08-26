@@ -2,7 +2,7 @@ export const COLORS = {
   background: '#0F172A',      // Slate 900
   card: '#1E293B',            // Slate 800
   cardElevated: '#334155',    // Slate 700
-  primary: '#E65F2B',         // Premium Rust Orange (Food/Restaurant accent)
+  primary: '#f85c5cff',         // Premium Rust Orange (Food/Restaurant accent)
   secondary: '#F2A93B',       // Vibrant Warm Amber
   success: '#10B981',         // Emerald Green
   danger: '#EF4444',          // Crimson Red
