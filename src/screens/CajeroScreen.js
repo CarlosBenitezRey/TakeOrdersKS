@@ -4,6 +4,7 @@ import {
   Text,
   View,
   TouchableOpacity,
+  Pressable,
   FlatList,
   ScrollView,
   TextInput,
@@ -29,12 +30,24 @@ import FacturasScreen from './admin/FacturasScreen';
 import TicketFacturaModal from '../components/TicketFacturaModal';
 import BalanceScreen from './admin/BalanceScreen';
 import MenuCmsScreen from './admin/MenuCmsScreen';
-import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../theme/theme';
+import {
+  COLORS,
+  POS_COLORS,
+  SPACING,
+  BORDER_RADIUS,
+  TYPOGRAPHY,
+} from '../theme/theme';
 import { getProductImage, APP_ICONS, getCategoryIcon } from '../theme/assets';
 
 // ─── Utilidades de formato y estética estilo Spotify ──────────────────────────
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');
+
+const FONT_BODY = Platform.select({
+  ios: 'Avenir Next',
+  android: 'sans-serif',
+  web: 'Avenir Next, Inter, system-ui, sans-serif',
+});
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
@@ -43,7 +56,6 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
   const { width: windowWidth } = useWindowDimensions();
   const isMobile = windowWidth < 600;
   const isTablet = windowWidth >= 600 && windowWidth < 1024;
-  const isDesktop = windowWidth >= 1024;
 
   // Cantidad de columnas dinámicas para la grilla
   const numColumns = isMobile ? 2 : isTablet ? 3 : 4;
@@ -54,13 +66,11 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
   // Dimensiones proporcionales calculadas para cada tarjeta
   const cardGap = isMobile ? 10 : 14;
   const cardWidth = Math.floor((containerWidth - (numColumns - 1) * cardGap) / numColumns);
-  const cardHeight = isMobile ? 116 : isTablet ? 134 : 146;
-  const cardTitleSize = isMobile ? 15 : isTablet ? 17 : 19;
-  const cardTitleLineHeight = isMobile ? 18 : isTablet ? 21 : 23;
-  const cardPriceSize = isMobile ? 13 : isTablet ? 15 : 16;
-  const cardImageSize = isMobile ? 70 : isTablet ? 84 : 96;
-  const cardImageRight = isMobile ? -10 : isTablet ? -12 : -14;
-  const cardImageBottom = isMobile ? -6 : isTablet ? -8 : -10;
+  const cardHeight = isMobile ? 118 : isTablet ? 132 : 142;
+  const cardTitleSize = isMobile ? 15 : isTablet ? 16 : 17;
+  const cardTitleLineHeight = isMobile ? 19 : isTablet ? 20 : 22;
+  const cardPriceSize = isMobile ? 13 : isTablet ? 14 : 15;
+  const cardImageSize = isMobile ? 80 : isTablet ? 94 : 104;
 
   // Estado del catálogo
   const [productos, setProductos] = useState([]);
@@ -326,6 +336,10 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
     selectedCategoryId
   );
 
+  const selectedCategoryName =
+    categorias.find((categoria) => categoria.id === selectedCategoryId)?.nombre ||
+    'Todo el menú';
+
   // Métricas del carrito (solo cálculos, sin lógica de negocio)
   const totalCantidad = carrito.reduce((sum, item) => sum + item.cantidad, 0);
   const totalPrecio = carrito.reduce(
@@ -551,53 +565,117 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={POS_COLORS.surfaceStrong} />
 
       {/* HEADER */}
       <View style={styles.header}>
         <View style={[styles.headerInner, { width: containerWidth }]}>
           <View style={styles.headerTitleBlock}>
             <Text style={styles.headerTitle}>Manageopy</Text>
-            <View style={styles.headerUserBlock}>
-              <Image
-                source={esAdmin ? APP_ICONS.admin : APP_ICONS.userDefault}
-                style={styles.headerUserIcon}
-                resizeMode="contain"
-              />
-              <Text style={styles.headerSubtitle}>
-                {userProfile?.nombre || 'Invitado'}
-              </Text>
-            </View>
+            <View style={styles.brandDivider} />
+            <Text style={styles.headerLocation} numberOfLines={1}>
+              {getSucursalName(userProfile?.sucursal_id)} · POS
+            </Text>
           </View>
           <View style={styles.headerActions}>
+            {!isMobile && (
+              <View style={styles.headerUserBlock}>
+                <View style={styles.onlineDot} />
+                <Text style={styles.headerSubtitle}>
+                  {userProfile?.nombre || 'Invitado'}
+                </Text>
+              </View>
+            )}
             <TouchableOpacity
               style={styles.menuButton}
               onPress={openDrawer}
               activeOpacity={0.7}
             >
-              <Text style={styles.menuButtonText}>☰ Menú</Text>
+              <Text style={styles.menuButtonText}>Menú</Text>
+              <Text style={styles.menuButtonIcon}>≡</Text>
             </TouchableOpacity>
           </View>
         </View>
       </View>
 
-      {/* SEARCH BAR */}
-      <View style={[styles.searchContainer, { width: containerWidth }]}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar platos o bebidas..."
-          placeholderTextColor={COLORS.textMuted}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery !== '' && (
-          <TouchableOpacity
-            style={styles.clearSearch}
-            onPress={() => setSearchQuery('')}
-          >
-            <Text style={styles.clearSearchText}>✕</Text>
-          </TouchableOpacity>
-        )}
+      <View
+        style={[
+          styles.discoveryBar,
+          { width: containerWidth },
+          !isMobile && styles.discoveryBarWide,
+        ]}
+      >
+        {/* SEARCH BAR */}
+        <View style={[styles.searchContainer, !isMobile && styles.searchContainerWide]}>
+          <Text style={styles.searchIcon}>⌕</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar platos o bebidas..."
+            placeholderTextColor={POS_COLORS.muted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery !== '' && (
+            <TouchableOpacity
+              style={styles.clearSearch}
+              onPress={() => setSearchQuery('')}
+            >
+              <Text style={styles.clearSearchText}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* CATEGORY SELECTOR */}
+        <View style={[styles.categorySection, !isMobile && styles.categorySectionWide]}>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={categorias}
+            keyExtractor={(item) => String(item.id)}
+            contentContainerStyle={styles.categoryList}
+            renderItem={({ item }) => {
+              const isSelected = selectedCategoryId === item.id;
+              return (
+                <TouchableOpacity
+                  style={[
+                    styles.categoryButton,
+                    isSelected && styles.categoryButtonSelected,
+                  ]}
+                  activeOpacity={0.75}
+                  onPress={() => setSelectedCategoryId(item.id)}
+                >
+                  <Image
+                    source={getCategoryIcon(item.nombre)}
+                    style={[
+                      styles.categoryIcon,
+                      isSelected && styles.categoryIconSelected,
+                    ]}
+                    resizeMode="contain"
+                  />
+                  <Text
+                    style={[
+                      styles.categoryText,
+                      isSelected && styles.categoryTextSelected,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {item.nombre}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      </View>
+
+      <View style={[styles.catalogHeader, { width: containerWidth }]}>
+        <View>
+          <Text style={styles.catalogTitle}>{selectedCategoryName}</Text>
+        </View>
+        <Text style={styles.catalogCount}>
+          {productosFiltrados.length}{' '}
+          {productosFiltrados.length === 1 ? 'producto' : 'productos'}
+        </Text>
       </View>
 
       {/* STATUS BANNER */}
@@ -618,7 +696,7 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
       {/* PRODUCTS LIST */}
       {loading ? (
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={POS_COLORS.primary} />
           <Text style={styles.loaderText}>Conectando con Supabase...</Text>
         </View>
       ) : (
@@ -643,26 +721,44 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
             const cantidadEnCarrito = carritoService.getCantidad(carrito, item.id);
 
             return (
-              <TouchableOpacity
+              <View
                 style={[
-                  styles.productCard,
-                  {
-                    width: cardWidth,
-                    height: cardHeight,
-                    backgroundColor: COLORS.cardProductBackground,
-                  },
-                  !isDisponible && styles.productCardDisabled,
+                  styles.productCardShadow,
+                  { width: cardWidth, height: cardHeight },
                 ]}
-                activeOpacity={0.85}
-                onPress={() => {
-                  if (!isDisponible) {
-                    showStatus(`"${item.nombre}" está agotado en cocina`, 'error');
-                    return;
-                  }
-                  agregarProducto(item);
-                }}
               >
-                {/* Texto del Producto: Nombre y Monto abajo */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.productCard,
+                    pressed && isDisponible && styles.productCardPressed,
+                    !isDisponible && styles.productCardDisabled,
+                  ]}
+                  onPress={() => {
+                    if (!isDisponible) {
+                      showStatus(`"${item.nombre}" está agotado en cocina`, 'error');
+                      return;
+                    }
+                    agregarProducto(item);
+                  }}
+                >
+                {/* Fotografía del producto */}
+                <View
+                  style={[
+                    styles.imageThumbnailWrapper,
+                    {
+                      width: cardImageSize,
+                      height: cardImageSize,
+                    },
+                  ]}
+                >
+                  <Image
+                    source={getProductImage(item.nombre, item.imagen_url)}
+                    style={styles.productImage}
+                    resizeMode="cover"
+                  />
+                </View>
+
+                {/* Información del producto */}
                 <View style={styles.cardTextContainer}>
                   <Text
                     style={[
@@ -676,35 +772,35 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                   >
                     {item.nombre}
                   </Text>
-                  <Text
-                    style={[
-                      styles.productPrice,
-                      {
-                        fontSize: cardPriceSize,
-                      },
-                    ]}
-                  >
-                    Gs. {formatPrice(item.precio)}
-                  </Text>
-                </View>
-
-                {/* Imagen del Producto Rotada al Fondo Derecho (Estilo Spotify) */}
-                <View
-                  style={[
-                    styles.imageThumbnailWrapper,
-                    {
-                      width: cardImageSize,
-                      height: cardImageSize,
-                      right: cardImageRight,
-                      bottom: cardImageBottom,
-                    },
-                  ]}
-                >
-                  <Image
-                    source={getProductImage(item.nombre, item.imagen_url)}
-                    style={styles.productImage}
-                    resizeMode="cover"
-                  />
+                  <View style={styles.cardPriceRow}>
+                    <Text
+                      style={[
+                        styles.productPrice,
+                        {
+                          fontSize: cardPriceSize,
+                        },
+                      ]}
+                    >
+                      Gs. {formatPrice(item.precio)}
+                    </Text>
+                    {isDisponible && (
+                      <View
+                        style={[
+                          styles.cardAddButton,
+                          cantidadEnCarrito > 0 && styles.cardAddButtonActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.cardAddButtonText,
+                            cantidadEnCarrito > 0 && styles.cardAddButtonTextActive,
+                          ]}
+                        >
+                          {cantidadEnCarrito > 0 ? cantidadEnCarrito : '+'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
 
                 {/* Overlay si está agotado */}
@@ -716,13 +812,8 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                   </View>
                 )}
 
-                {/* Badge discreto si ya se agregó al carrito */}
-                {cantidadEnCarrito > 0 && isDisponible && (
-                  <View style={styles.badgeCarrito}>
-                    <Text style={styles.badgeCarritoText}>✓ {cantidadEnCarrito}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+                </Pressable>
+              </View>
             );
           }}
         />
@@ -739,59 +830,21 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
             <View style={styles.cartItemsCountBadge}>
               <Text style={styles.cartItemsCountText}>{totalCantidad}</Text>
             </View>
-            <Text style={styles.floatingCartText}>Ver Pedido</Text>
-            <Text style={styles.floatingCartTotal}>
-              Gs. {formatPrice(totalPrecio)}
-            </Text>
+            <View style={styles.floatingCartCopy}>
+              <Text style={styles.floatingCartEyebrow}>PEDIDO ACTUAL</Text>
+              <Text style={styles.floatingCartText}>
+                Revisar {totalCantidad === 1 ? 'producto' : 'productos'}
+              </Text>
+            </View>
+            <View style={styles.floatingCartAmount}>
+              <Text style={styles.floatingCartTotal}>
+                Gs. {formatPrice(totalPrecio)}
+              </Text>
+              <Text style={styles.floatingCartArrow}>→</Text>
+            </View>
           </TouchableOpacity>
         </View>
       )}
-
-      {/* CATEGORY BOTTOM BAR */}
-      <View style={styles.bottomTabBar}>
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={categorias}
-          keyExtractor={(item) => String(item.id)}
-          style={styles.bottomTabFlatList}
-          contentContainerStyle={[
-            styles.bottomTabList,
-            (categorias.length * 96 < windowWidth) && styles.bottomTabListCentered,
-          ]}
-          renderItem={({ item }) => {
-            const isSelected = selectedCategoryId === item.id;
-            return (
-              <TouchableOpacity
-                style={[
-                  styles.bottomTabButton,
-                  isSelected && styles.bottomTabButtonSelected,
-                ]}
-                activeOpacity={0.7}
-                onPress={() => setSelectedCategoryId(item.id)}
-              >
-                <Image
-                  source={getCategoryIcon(item.nombre)}
-                  style={[
-                    styles.bottomTabIcon,
-                    isSelected && styles.bottomTabIconSelected,
-                  ]}
-                  resizeMode="contain"
-                />
-                <Text
-                  style={[
-                    styles.bottomTabText,
-                    isSelected && styles.bottomTabTextSelected,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {item.nombre}
-                </Text>
-              </TouchableOpacity>
-            );
-          }}
-        />
-      </View>
 
       {/* ── CART MODAL ─────────────────────────────────────────────────────── */}
       <Modal
@@ -1064,7 +1117,11 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                           source={tab.icon}
                           style={[
                             styles.railTabIcon,
-                            { tintColor: isSelected ? COLORS.primary : 'rgba(0, 0, 0, 0.45)' },
+                            {
+                              tintColor: isSelected
+                                ? POS_COLORS.primary
+                                : POS_COLORS.muted,
+                            },
                           ]}
                           resizeMode="contain"
                         />
@@ -1265,44 +1322,71 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: POS_COLORS.canvas,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
     width: '100%',
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(23, 21, 18, 0.10)',
   },
   headerInner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: SPACING.sm,
+    minHeight: 58,
+    paddingVertical: 7,
     alignSelf: 'center',
   },
   headerTitleBlock: {
     flex: 1,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   headerTitle: {
-    ...TYPOGRAPHY.h1,
-    color: COLORS.primary,
+    color: POS_COLORS.ink,
+    fontFamily: FONT_BODY,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '800',
+    letterSpacing: -0.7,
+  },
+  brandDivider: {
+    width: 1,
+    height: 18,
+    backgroundColor: POS_COLORS.line,
   },
   headerSubtitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.secondaryText,
-    opacity: 0.85,
-    textTransform: 'uppercase',
+    fontFamily: FONT_BODY,
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: '700',
+    color: POS_COLORS.ink,
   },
   headerUserBlock: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
-    gap: 6,
+    gap: 9,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    marginRight: 10,
   },
-  headerUserIcon: {
-    width: 18,
-    height: 18,
+  onlineDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: POS_COLORS.primary,
+  },
+  headerLocation: {
+    color: POS_COLORS.muted,
+    fontFamily: FONT_BODY,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '700',
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
   },
   headerActions: {
     flexDirection: 'row',
@@ -1333,42 +1417,144 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   menuButton: {
-    paddingVertical: SPACING.xs + 2,
-    paddingHorizontal: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.primary,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: POS_COLORS.primaryDark,
+    flexDirection: 'row',
+    gap: 8,
     justifyContent: 'center',
     alignItems: 'center',
     height: 40,
   },
   menuButtonText: {
-    color: COLORS.text,
+    color: '#FFFFFF',
+    fontFamily: FONT_BODY,
     fontWeight: '700',
     fontSize: 14,
+  },
+  menuButtonIcon: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '500',
+  },
+  discoveryBar: {
+    alignSelf: 'center',
+  },
+  discoveryBarWide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 9,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.searchBarBackground,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    paddingHorizontal: SPACING.md,
-    marginVertical: SPACING.sm,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
+    paddingHorizontal: 13,
+    marginTop: 10,
+    marginBottom: 8,
     alignSelf: 'center',
+  },
+  searchContainerWide: {
+    width: 300,
+    marginTop: 0,
+    marginBottom: 0,
+  },
+  searchIcon: {
+    color: POS_COLORS.muted,
+    fontSize: 21,
+    lineHeight: 26,
+    fontWeight: '500',
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    height: 48,
-    color: COLORS.text,
-    ...TYPOGRAPHY.body,
+    height: 42,
+    color: POS_COLORS.ink,
+    fontFamily: FONT_BODY,
+    fontSize: 15,
   },
   clearSearch: {
     padding: SPACING.xs,
   },
   clearSearchText: {
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     fontSize: 16,
+  },
+  categorySection: {
+    alignSelf: 'center',
+    width: '100%',
+    minHeight: 40,
+    marginBottom: 8,
+  },
+  categorySectionWide: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  categoryList: {
+    gap: 8,
+    paddingRight: 2,
+  },
+  categoryButton: {
+    minWidth: 0,
+    height: 38,
+    paddingHorizontal: 13,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  categoryButtonSelected: {
+    backgroundColor: POS_COLORS.primarySoft,
+    borderColor: POS_COLORS.primarySoft,
+  },
+  categoryIcon: {
+    width: 18,
+    height: 18,
+    tintColor: POS_COLORS.muted,
+  },
+  categoryIconSelected: {
+    tintColor: POS_COLORS.primary,
+  },
+  categoryText: {
+    color: POS_COLORS.muted,
+    fontFamily: FONT_BODY,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  categoryTextSelected: {
+    color: POS_COLORS.primaryDark,
+    fontWeight: '800',
+  },
+  catalogHeader: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: 8,
+  },
+  catalogTitle: {
+    color: POS_COLORS.ink,
+    fontFamily: FONT_BODY,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '800',
+    letterSpacing: -0.35,
+  },
+  catalogCount: {
+    color: POS_COLORS.muted,
+    fontFamily: FONT_BODY,
+    fontSize: 12,
+    fontWeight: '700',
+    paddingBottom: 3,
   },
   statusBanner: {
     marginBottom: SPACING.sm,
@@ -1401,28 +1587,39 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bodyMuted,
   },
   listContent: {
-    paddingTop: SPACING.xs,
-    paddingBottom: 170,
+    paddingTop: 0,
+    paddingBottom: 96,
     alignSelf: 'center',
   },
   rowWrapper: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
   },
-  // ─── Tarjeta de Producto Estilo Spotify (Responsive) ─────────────────────────
-  productCard: {
+  // ─── Tarjetas de producto optimizadas para POS ───────────────────────────────
+  productCardShadow: {
     borderRadius: 14,
-    padding: 12,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    shadowColor: '#17221B',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.13,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  productCard: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 14,
+    padding: 13,
     position: 'relative',
     overflow: 'hidden',
     justifyContent: 'flex-start',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
+    borderColor: '#D5DDD7',
+    backgroundColor: POS_COLORS.surfaceStrong,
+  },
+  productCardPressed: {
+    opacity: 0.95,
+    transform: [{ scale: 0.985 }],
   },
   productCardDisabled: {
     opacity: 0.55,
@@ -1431,36 +1628,66 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
     justifyContent: 'space-between',
-    maxWidth: '62%',
+    maxWidth: '61%',
     zIndex: 2,
   },
   productName: {
-    color: '#FFFFFF',
+    color: POS_COLORS.ink,
+    fontFamily: FONT_BODY,
     fontWeight: '800',
     letterSpacing: -0.2,
-    textShadowColor: 'rgba(0, 0, 0, 0.35)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   productPrice: {
-    color: 'rgba(255, 255, 255, 0.95)',
+    color: POS_COLORS.primaryDark,
+    fontFamily: FONT_BODY,
     fontWeight: '700',
-    letterSpacing: 0.3,
-    textShadowColor: 'rgba(0, 0, 0, 0.35)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    letterSpacing: 0,
+  },
+  cardPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  cardAddButton: {
+    width: 27,
+    height: 27,
+    borderRadius: 14,
+    backgroundColor: POS_COLORS.primarySoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: POS_COLORS.primarySoft,
+  },
+  cardAddButtonActive: {
+    backgroundColor: POS_COLORS.primary,
+    borderColor: POS_COLORS.primary,
+  },
+  cardAddButtonText: {
+    color: POS_COLORS.primaryDark,
+    fontFamily: FONT_BODY,
+    fontSize: 20,
+    lineHeight: 22,
+    fontWeight: '400',
+    marginTop: -1,
+  },
+  cardAddButtonTextActive: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: '800',
+    marginTop: 0,
   },
   imageThumbnailWrapper: {
     position: 'absolute',
-    borderRadius: 8,
+    right: -9,
+    bottom: -7,
+    borderRadius: 18,
     overflow: 'hidden',
-    transform: [{ rotate: '25deg' }],
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 6,
+    backgroundColor: POS_COLORS.line,
+    transform: [{ rotate: '4deg' }],
+    borderWidth: 2,
+    borderColor: POS_COLORS.surfaceStrong,
   },
   productImage: {
     width: '100%',
@@ -1485,23 +1712,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-  badgeCarrito: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    zIndex: 4,
-  },
-  badgeCarritoText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
-  },
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -1514,130 +1724,87 @@ const styles = StyleSheet.create({
   },
   floatingCartContainer: {
     position: 'absolute',
-    bottom: 96,
+    bottom: 22,
     alignSelf: 'center',
     zIndex: 35,
+    paddingHorizontal: 0,
   },
   floatingCartButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.xl,
+    backgroundColor: POS_COLORS.primaryDark,
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
+    minHeight: 68,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
+    shadowOpacity: 0.24,
+    shadowRadius: 12,
   },
   cartItemsCountBadge: {
-    backgroundColor: COLORS.textLight,
-    borderRadius: BORDER_RADIUS.round,
-    width: 26,
-    height: 26,
+    backgroundColor: POS_COLORS.primary,
+    borderRadius: 6,
+    width: 38,
+    height: 38,
     justifyContent: 'center',
     alignItems: 'center',
   },
   cartItemsCountText: {
-    color: COLORS.primary,
-    fontWeight: '900',
+    color: '#FFFFFF',
+    fontFamily: FONT_BODY,
+    fontWeight: '800',
     fontSize: 14,
   },
+  floatingCartCopy: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  floatingCartEyebrow: {
+    color: '#A7A098',
+    fontFamily: FONT_BODY,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    marginBottom: 2,
+  },
   floatingCartText: {
-    ...TYPOGRAPHY.button,
-    fontSize: 17,
+    fontFamily: FONT_BODY,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  floatingCartAmount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   floatingCartTotal: {
-    ...TYPOGRAPHY.button,
-    fontSize: 18,
-    fontWeight: '800',
+    fontFamily: FONT_BODY,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  // ─── Bottom Tab Bar de Categorías (Centrado en PC y Móvil) ─────────────────
-  bottomTabBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: COLORS.searchBarBackground,
-    borderTopWidth: 2,
-    borderTopColor: COLORS.primary,
-    borderTopEndRadius: 12,
-    borderTopStartRadius: 12,
-    height: 84,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: Platform.OS === 'ios' ? 15 : 0,
-    zIndex: 40,
-  },
-  bottomTabFlatList: {
-    width: '100%',
-    flex: 1,
-  },
-  bottomTabList: {
-    alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-  },
-  bottomTabListCentered: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-  bottomTabButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginHorizontal: 5,
-    borderRadius: 14,
-    backgroundColor: COLORS.searchBarBackground,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    minWidth: 84,
-    height: 60,
-  },
-  bottomTabButtonSelected: {
-    backgroundColor: 'rgba(92, 149, 248, 0.16)',
-    borderColor: COLORS.primary,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  bottomTabIcon: {
-    width: 26,
-    height: 26,
-    marginBottom: 4,
-    tintColor: COLORS.textMuted,
-  },
-  bottomTabIconSelected: {
-    tintColor: COLORS.primary,
-  },
-  bottomTabText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  bottomTabTextSelected: {
-    color: COLORS.primary,
-    fontWeight: '800',
+  floatingCartArrow: {
+    color: POS_COLORS.primary,
+    fontSize: 22,
+    fontWeight: '400',
   },
   // Cart Modal (Centrado en pantalla y colores en coherencia con CajeroScreen)
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(32, 26, 23, 0.68)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
   },
   modalContainer: {
-    backgroundColor: COLORS.searchBarBackground,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: 'rgba(92, 139, 248, 0.25)',
+    backgroundColor: POS_COLORS.surfaceStrong,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
     maxHeight: '88%',
     width: '100%',
     maxWidth: 580,
@@ -1655,25 +1822,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1.5,
-    borderBottomColor: 'rgba(92, 139, 248, 0.15)',
-    backgroundColor: COLORS.searchBarBackground,
+    borderBottomColor: POS_COLORS.line,
+    backgroundColor: POS_COLORS.surfaceStrong,
   },
   modalTitle: {
     ...TYPOGRAPHY.h2,
-    color: COLORS.primary,
-    fontWeight: '800',
-    fontSize: 20,
+    color: POS_COLORS.ink,
+    fontWeight: '900',
+    fontSize: 22,
   },
   closeModalButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: POS_COLORS.canvas,
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeModalButtonText: {
-    color: COLORS.secondaryText,
+    color: POS_COLORS.muted,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -1681,7 +1848,7 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
   },
   cartItemCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: POS_COLORS.surface,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
@@ -1689,7 +1856,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: 'rgba(92, 139, 248, 0.18)',
+    borderColor: POS_COLORS.line,
   },
   cartItemInfo: {
     flexDirection: 'row',
@@ -1710,12 +1877,12 @@ const styles = StyleSheet.create({
   cartItemName: {
     ...TYPOGRAPHY.body,
     fontWeight: '700',
-    color: '#0F172A',
+    color: POS_COLORS.ink,
     fontSize: 15,
   },
   cartItemPrice: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.primary,
+    color: POS_COLORS.primary,
     fontWeight: '700',
     marginTop: 2,
     fontSize: 13,
@@ -1725,22 +1892,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   qtyButton: {
-    backgroundColor: COLORS.searchBarBackground,
+    backgroundColor: POS_COLORS.surfaceStrong,
     borderWidth: 1.5,
-    borderColor: 'rgba(92, 139, 248, 0.35)',
-    width: 30,
-    height: 30,
+    borderColor: POS_COLORS.line,
+    width: 34,
+    height: 34,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   qtyButtonText: {
-    color: COLORS.primary,
+    color: POS_COLORS.primary,
     fontSize: 16,
     fontWeight: '800',
   },
   qtyText: {
-    color: '#0F172A',
+    color: POS_COLORS.ink,
     fontSize: 15,
     fontWeight: '800',
     marginHorizontal: SPACING.sm,
@@ -1762,8 +1929,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderTopWidth: 1.5,
-    borderTopColor: 'rgba(92, 139, 248, 0.15)',
-    backgroundColor: COLORS.searchBarBackground,
+    borderTopColor: POS_COLORS.line,
+    backgroundColor: POS_COLORS.surfaceStrong,
   },
   modalTotalRow: {
     flexDirection: 'row',
@@ -1775,22 +1942,22 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.body,
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.secondaryText,
+    color: POS_COLORS.muted,
   },
   modalTotalValue: {
     ...TYPOGRAPHY.h2,
-    color: COLORS.primary,
+    color: POS_COLORS.primary,
     fontSize: 22,
     fontWeight: '900',
   },
   checkoutButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primary,
     borderRadius: BORDER_RADIUS.md,
     paddingVertical: SPACING.sm + 2,
     alignItems: 'center',
     justifyContent: 'center',
     height: 48,
-    shadowColor: COLORS.primary,
+    shadowColor: POS_COLORS.primaryDark,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -1809,12 +1976,12 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     paddingTop: SPACING.md,
     borderTopWidth: 1.5,
-    borderTopColor: 'rgba(92, 139, 248, 0.15)',
+    borderTopColor: POS_COLORS.line,
   },
   formSectionTitle: {
     ...TYPOGRAPHY.h3,
     marginBottom: SPACING.sm,
-    color: COLORS.primary,
+    color: POS_COLORS.ink,
     fontWeight: '800',
     fontSize: 16,
   },
@@ -1828,19 +1995,19 @@ const styles = StyleSheet.create({
   },
   formInputLabel: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.secondaryText,
+    color: POS_COLORS.muted,
     fontWeight: '700',
     fontSize: 12,
     marginBottom: 5,
   },
   formInput: {
     height: 42,
-    backgroundColor: '#F8FAFC',
-    borderColor: 'rgba(92, 139, 248, 0.3)',
+    backgroundColor: POS_COLORS.surface,
+    borderColor: POS_COLORS.line,
     borderWidth: 1.5,
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.md,
-    color: '#0F172A',
+    color: POS_COLORS.ink,
     ...TYPOGRAPHY.body,
     fontSize: 14,
   },
@@ -1857,8 +2024,8 @@ const styles = StyleSheet.create({
   paymentOption: {
     flex: 1,
     height: 38,
-    backgroundColor: '#F8FAFC',
-    borderColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: POS_COLORS.surface,
+    borderColor: POS_COLORS.line,
     borderWidth: 1.5,
     borderRadius: BORDER_RADIUS.sm,
     justifyContent: 'center',
@@ -1866,41 +2033,41 @@ const styles = StyleSheet.create({
     marginHorizontal: 2,
   },
   paymentOptionSelected: {
-    backgroundColor: 'rgba(92, 139, 248, 0.15)',
-    borderColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primarySoft,
+    borderColor: POS_COLORS.primary,
   },
   paymentOptionText: {
     ...TYPOGRAPHY.caption,
     fontSize: 11,
     fontWeight: '600',
-    color: COLORS.secondaryText,
+    color: POS_COLORS.muted,
   },
   paymentOptionTextSelected: {
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
     fontWeight: '800',
   },
   condicionBadge: {
     flex: 1,
     height: 38,
-    backgroundColor: '#F8FAFC',
-    borderColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: POS_COLORS.surface,
+    borderColor: POS_COLORS.line,
     borderWidth: 1.5,
     borderRadius: BORDER_RADIUS.sm,
     justifyContent: 'center',
     alignItems: 'center',
   },
   condicionBadgeActive: {
-    backgroundColor: 'rgba(92, 139, 248, 0.15)',
-    borderColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primarySoft,
+    borderColor: POS_COLORS.primary,
   },
   condicionBadgeText: {
     ...TYPOGRAPHY.caption,
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.secondaryText,
+    color: POS_COLORS.muted,
   },
   condicionBadgeTextActive: {
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
     fontWeight: '800',
   },
   // ─── Dual-Column Lateral Drawer (Anclado a la derecha, estilo de la imagen) ──
@@ -1923,7 +2090,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 0,
     overflow: 'hidden',
     borderLeftWidth: 1,
-    borderLeftColor: 'rgba(92, 139, 248, 0.2)',
+    borderLeftColor: POS_COLORS.line,
     // Sombra hacia la izquierda
     shadowColor: '#000',
     shadowOffset: { width: -4, height: 0 },
@@ -1939,9 +2106,9 @@ const styles = StyleSheet.create({
   // Columna 1: Rail Izquierdo
   railColumn: {
     width: 96,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: POS_COLORS.canvas,
     borderRightWidth: 1,
-    borderRightColor: 'rgba(92, 139, 248, 0.15)',
+    borderRightColor: POS_COLORS.line,
     paddingTop: Platform.OS === 'ios' ? 50 : 20,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
   },
@@ -1959,9 +2126,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   railTabItemSelected: {
-    backgroundColor: 'rgba(92, 139, 248, 0.15)',
+    backgroundColor: POS_COLORS.primarySoft,
     borderWidth: 1.5,
-    borderColor: COLORS.primary,
+    borderColor: POS_COLORS.primary,
   },
   railTabIcon: {
     width: 24,
@@ -1971,17 +2138,17 @@ const styles = StyleSheet.create({
   railTabLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: 'rgba(0, 0, 0, 0.65)',
+    color: POS_COLORS.muted,
     textAlign: 'center',
   },
   railTabLabelSelected: {
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
     fontWeight: '800',
   },
   // Columna 2: Submenú Derecho
   submenuColumn: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: POS_COLORS.surfaceStrong,
     paddingHorizontal: 18,
     paddingTop: Platform.OS === 'ios' ? 50 : 20,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
@@ -1994,15 +2161,15 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: POS_COLORS.canvas,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.15)',
+    borderColor: POS_COLORS.line,
   },
   submenuCloseText: {
-    color: '#475569',
+    color: POS_COLORS.muted,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -2011,12 +2178,12 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   submenuMainPill: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primary,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginBottom: 16,
-    shadowColor: COLORS.primary,
+    shadowColor: POS_COLORS.primaryDark,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -2041,16 +2208,16 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: BORDER_RADIUS.md,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: POS_COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.1)',
+    borderColor: POS_COLORS.line,
   },
   submenuLinkItemDanger: {
     backgroundColor: 'rgba(239, 68, 68, 0.06)',
     borderColor: 'rgba(239, 68, 68, 0.25)',
   },
   submenuLinkText: {
-    color: '#0F172A',
+    color: POS_COLORS.ink,
     fontSize: 13.5,
     fontWeight: '600',
   },
