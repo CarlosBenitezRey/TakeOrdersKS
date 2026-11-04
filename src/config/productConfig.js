@@ -22,7 +22,8 @@ export const PRODUCT_CONFIG = {
   },
   attribution: {
     prefix: 'Desarrollado por',
-    label: 'manageopy',
+    label: 'Manageopy',
+    logo: require('../../assets/branding/manageopy-logo.svg'),
     url: 'https://manageopy.com',
   },
 };
