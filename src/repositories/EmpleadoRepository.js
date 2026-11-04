@@ -18,7 +18,7 @@ class EmpleadoRepository {
         *,
         sucursales ( nombre )
       `)
-      .eq('activo', true)
+      .neq('activo', false)
       .order('nombre', { ascending: true });
 
     if (sucursalId) {
@@ -26,7 +26,22 @@ class EmpleadoRepository {
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      console.warn('Fallback en getActivos empleados sin join:', error.message);
+      let fallback = supabase
+        .from('empleados')
+        .select('*')
+        .neq('activo', false)
+        .order('nombre', { ascending: true });
+
+      if (sucursalId) {
+        fallback = fallback.eq('sucursal_id', sucursalId);
+      }
+
+      const { data: fallbackData, error: fallbackError } = await fallback;
+      if (fallbackError) throw fallbackError;
+      return fallbackData || [];
+    }
     return data || [];
   }
 
@@ -40,7 +55,16 @@ class EmpleadoRepository {
       .select(`*, sucursales ( nombre )`)
       .order('nombre', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.warn('Fallback en getTodos empleados sin join:', error.message);
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('empleados')
+        .select('*')
+        .order('nombre', { ascending: true });
+
+      if (fallbackError) throw fallbackError;
+      return fallbackData || [];
+    }
     return data || [];
   }
 

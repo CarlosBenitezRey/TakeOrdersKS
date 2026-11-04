@@ -1,16 +1,20 @@
 export const COLORS = {
-  background: '#0F172A',      // Slate 900
+  background: '#e0ebfdbb',      // Slate 900
   card: '#1E293B',            // Slate 800
   cardElevated: '#334155',    // Slate 700
-  primary: '#f85c5cff',         // Premium Rust Orange (Food/Restaurant accent)
+  primary: '#5c8bf8ff',         // Premium Rust Orange (Food/Restaurant accent)
   secondary: '#F2A93B',       // Vibrant Warm Amber
   success: '#10B981',         // Emerald Green
   danger: '#EF4444',          // Crimson Red
   border: '#334155',          // Slate 700
-  text: '#F8FAFC',            // Slate 50 (Off-white)
+  text: '#F8FAFC',
+  secondaryText: 'rgba(0, 0, 0, 0.67)',            // Slate 50 (Off-white)
   textMuted: '#94A3B8',       // Slate 400 (Muted gray)
   textLight: '#FFFFFF',       // Full white
   overlay: 'rgba(15, 23, 42, 0.75)',
+  cardProductBackground: 'rgba(197, 196, 196, 0.63)',
+  searchBarBackground: '#ffffffff',
+  secondaryBackground: '#ffffff',
 };
 
 export const SPACING = {

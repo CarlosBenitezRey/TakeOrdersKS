@@ -14,9 +14,9 @@ import {
   ScrollView,
   KeyboardAvoidingView,
 } from 'react-native';
-import empleadoService, { ROLES_DISPONIBLES } from '../services/EmpleadoService';
-import productoRepository from '../repositories/ProductoRepository';
-import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../theme/theme';
+import empleadoService, { ROLES_DISPONIBLES } from '../../services/EmpleadoService';
+import productService from '../../services/ProductService';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
 
 // ─── Constantes de UI ─────────────────────────────────────────────────────────
 
@@ -30,11 +30,11 @@ const FORM_INICIAL = {
 };
 
 const ROL_COLORES = {
-  cajero:     { bg: 'rgba(248, 92, 92, 0.15)',   text: '#f85c5c' },
-  cocinero:   { bg: 'rgba(242, 169, 59, 0.15)',   text: '#F2A93B' },
-  mozo:       { bg: 'rgba(99, 179, 237, 0.15)',   text: '#63B3ED' },
-  supervisor: { bg: 'rgba(167, 139, 250, 0.15)',  text: '#A78BFA' },
-  admin:      { bg: 'rgba(16, 185, 129, 0.15)',   text: '#10B981' },
+  cajero: { bg: 'rgba(248, 92, 92, 0.15)', text: '#f85c5c' },
+  cocinero: { bg: 'rgba(242, 169, 59, 0.15)', text: '#F2A93B' },
+  mozo: { bg: 'rgba(99, 179, 237, 0.15)', text: '#63B3ED' },
+  supervisor: { bg: 'rgba(167, 139, 250, 0.15)', text: '#A78BFA' },
+  admin: { bg: 'rgba(16, 185, 129, 0.15)', text: '#10B981' },
 };
 
 const formatPrice = (value) =>
@@ -67,13 +67,14 @@ export default function PersonalScreen({ userProfile, onClose }) {
     try {
       setLoading(true);
       const [listaEmpleados, listaSucursales] = await Promise.all([
-        empleadoService.getEmpleados(userProfile?.sucursal_id || null),
-        productoRepository.getSucursales(),
+        empleadoService.getEmpleados(null),
+        productService.getSucursales(),
       ]);
       setEmpleados(listaEmpleados);
       setSucursales(listaSucursales);
     } catch (error) {
-      showStatus('Error al cargar personal', 'error');
+      console.error('Error al cargar personal en PersonalScreen:', error);
+      showStatus(error.message || 'Error al cargar personal', 'error');
     } finally {
       setLoading(false);
     }
@@ -90,11 +91,11 @@ export default function PersonalScreen({ userProfile, onClose }) {
   const abrirFormEditar = (empleado) => {
     setEmpleadoEditando(empleado);
     setFormData({
-      nombre:       empleado.nombre || '',
-      rol:          empleado.rol || 'cajero',
-      sucursalId:   empleado.sucursal_id || null,
-      sueldoBase:   String(empleado.sueldo_base || ''),
-      telefono:     empleado.telefono || '',
+      nombre: empleado.nombre || '',
+      rol: empleado.rol || 'cajero',
+      sucursalId: empleado.sucursal_id || null,
+      sueldoBase: String(empleado.sueldo_base || ''),
+      telefono: empleado.telefono || '',
       fechaIngreso: empleado.fecha_ingreso || new Date().toISOString().split('T')[0],
     });
     setIsFormVisible(true);
@@ -181,11 +182,11 @@ export default function PersonalScreen({ userProfile, onClose }) {
               </Text>
             </View>
             {/* Sucursal */}
-            {item.sucursales?.nombre && (
+            {(item.sucursales?.nombre || sucursales.find((s) => s.id === item.sucursal_id)?.nombre) ? (
               <Text style={styles.sucursalText} numberOfLines={1}>
-                📍 {item.sucursales.nombre}
+                📍 {item.sucursales?.nombre || sucursales.find((s) => s.id === item.sucursal_id)?.nombre}
               </Text>
-            )}
+            ) : null}
           </View>
 
           {/* Sueldo */}
@@ -227,7 +228,7 @@ export default function PersonalScreen({ userProfile, onClose }) {
       {/* HEADER */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>👥 Personal</Text>
+          <Text style={styles.headerTitle}>Personal</Text>
           <Text style={styles.headerSubtitle}>
             {empleados.length} empleado{empleados.length !== 1 ? 's' : ''} activo{empleados.length !== 1 ? 's' : ''}
           </Text>
@@ -273,7 +274,7 @@ export default function PersonalScreen({ userProfile, onClose }) {
       ) : (
         <FlatList
           data={empleados}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => String(item.id || Math.random())}
           renderItem={renderEmpleado}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -498,18 +499,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.secondaryBackground,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.card,
+    borderBottomColor: 'rgba(92, 139, 248, 0.15)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 3,
   },
   headerTitle: {
-    ...TYPOGRAPHY.h2,
+    ...TYPOGRAPHY.h1,
     color: COLORS.primary,
   },
   headerSubtitle: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
+    color: '#64748B',
     marginTop: 2,
   },
   headerActions: {
@@ -519,7 +525,7 @@ const styles = StyleSheet.create({
   },
   btnAgregar: {
     backgroundColor: COLORS.success,
-    paddingVertical: SPACING.xs + 2,
+    paddingVertical: SPACING.xs + 4,
     paddingHorizontal: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
   },
@@ -529,17 +535,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   btnCerrar: {
-    backgroundColor: COLORS.cardElevated,
+    backgroundColor: '#F1F5F9',
     width: 36,
     height: 36,
     borderRadius: BORDER_RADIUS.round,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(92, 139, 248, 0.15)',
   },
   btnCerrarText: {
-    color: COLORS.textMuted,
+    color: '#475569',
     fontSize: 16,
     fontWeight: '700',
   },
@@ -589,7 +595,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   emptyTitle: {
-    ...TYPOGRAPHY.h3,
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.secondaryText,
     textAlign: 'center',
     marginBottom: SPACING.sm,
   },
@@ -607,21 +615,21 @@ const styles = StyleSheet.create({
 
   // Tarjeta de empleado
   empleadoCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: '#FFFFFF',
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     marginBottom: SPACING.md,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(92, 139, 248, 0.12)',
     // Sombra iOS
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
     // Sombra Android
-    elevation: 3,
+    elevation: 2,
   },
   avatarContainer: {
     width: 52,
@@ -634,7 +642,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   avatarText: {
-    color: COLORS.textLight,
+    color: '#FFFFFF',
     fontSize: 22,
     fontWeight: '800',
   },
@@ -643,7 +651,8 @@ const styles = StyleSheet.create({
   },
   empleadoNombre: {
     ...TYPOGRAPHY.body,
-    fontWeight: '700',
+    fontWeight: '800',
+    color: '#0F172A',
     marginBottom: 4,
   },
   empleadoMeta: {
@@ -665,17 +674,17 @@ const styles = StyleSheet.create({
   },
   sucursalText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
+    color: '#64748B',
   },
   sueldoText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.secondary,
+    color: COLORS.primary,
     fontWeight: '700',
     marginTop: 2,
   },
   telefonoText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
+    color: '#64748B',
     marginTop: 2,
   },
   empleadoAcciones: {
@@ -692,15 +701,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   accionEditar: {
-    backgroundColor: 'rgba(242, 169, 59, 0.1)',
-    borderColor: '#F2A93B',
+    backgroundColor: 'rgba(92, 139, 248, 0.1)',
+    borderColor: 'rgba(92, 139, 248, 0.3)',
   },
   accionEditarText: {
     fontSize: 16,
   },
   accionBaja: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderColor: COLORS.danger,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderColor: 'rgba(239, 68, 68, 0.25)',
   },
   accionBajaText: {
     fontSize: 16,
@@ -709,15 +718,20 @@ const styles = StyleSheet.create({
   // Modal de formulario
   modalOverlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay,
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
     justifyContent: 'flex-end',
   },
   formModal: {
-    backgroundColor: COLORS.card,
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl,
     maxHeight: '92%',
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 20,
   },
   formModalHeader: {
     flexDirection: 'row',
@@ -725,14 +739,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: 'rgba(92, 139, 248, 0.15)',
   },
   formModalTitle: {
     ...TYPOGRAPHY.h3,
-    color: COLORS.primary,
+    color: '#0F172A',
+    fontWeight: '800',
   },
   formModalClose: {
-    color: COLORS.textMuted,
+    color: '#64748B',
     fontSize: 20,
     fontWeight: '700',
     padding: SPACING.xs,
@@ -748,19 +763,19 @@ const styles = StyleSheet.create({
   // Campos del formulario
   fieldLabel: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.text,
+    color: '#0F172A',
     fontWeight: '700',
     marginBottom: 6,
     marginTop: SPACING.md,
   },
   fieldInput: {
     height: 46,
-    backgroundColor: COLORS.background,
-    borderColor: COLORS.border,
+    backgroundColor: '#F8FAFC',
+    borderColor: 'rgba(92, 139, 248, 0.15)',
     borderWidth: 1,
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.md,
-    color: COLORS.text,
+    color: '#0F172A',
     ...TYPOGRAPHY.body,
   },
 
@@ -774,13 +789,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#E2E8F0',
   },
   rolOptionText: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: '#64748B',
     fontWeight: '600',
   },
 
@@ -793,17 +808,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(92, 139, 248, 0.12)',
   },
   sucursalOptionSelected: {
-    backgroundColor: 'rgba(248, 92, 92, 0.15)',
+    backgroundColor: 'rgba(92, 139, 248, 0.15)',
     borderColor: COLORS.primary,
   },
   sucursalOptionText: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: '#64748B',
     fontWeight: '600',
   },
   sucursalOptionTextSelected: {
@@ -816,7 +831,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: 'rgba(92, 139, 248, 0.12)',
   },
   btnGuardar: {
     backgroundColor: COLORS.success,
@@ -836,7 +851,7 @@ const styles = StyleSheet.create({
   // Modal de confirmación de baja
   confirmOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
@@ -844,12 +859,17 @@ const styles = StyleSheet.create({
   confirmBox: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: COLORS.card,
+    backgroundColor: '#FFFFFF',
     borderRadius: BORDER_RADIUS.xl,
     padding: SPACING.lg,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(92, 139, 248, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 10,
   },
   confirmEmoji: {
     fontSize: 52,
@@ -859,6 +879,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.h2,
     textAlign: 'center',
     marginBottom: SPACING.xs,
+    color: '#0F172A',
   },
   confirmNombre: {
     ...TYPOGRAPHY.body,
@@ -872,6 +893,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: SPACING.lg,
     lineHeight: 20,
+    color: '#64748B',
   },
   confirmButtons: {
     flexDirection: 'row',
@@ -886,12 +908,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   confirmBtnCancel: {
-    backgroundColor: COLORS.cardElevated,
+    backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#E2E8F0',
   },
   confirmBtnCancelText: {
-    color: COLORS.text,
+    color: '#475569',
     fontWeight: '700',
   },
   confirmBtnDelete: {

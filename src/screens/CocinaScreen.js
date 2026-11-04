@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import orderService from '../services/OrderService';
 import authService from '../services/AuthService';
-import productoRepository from '../repositories/ProductoRepository';
+import productService from '../services/ProductService';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../theme/theme';
 
 export default function CocinaScreen({ userProfile, onSwitchView }) {
@@ -31,7 +31,7 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
   useEffect(() => {
     // Si el usuario no tiene sucursal asignada (admin), cargar la lista de sucursales
     if (!userProfile?.sucursal_id) {
-      productoRepository
+      productService
         .getSucursales()
         .then((data) => setSucursales(data))
         .catch((err) => console.log('Error cargando sucursales en Cocina:', err));
@@ -120,8 +120,8 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
 
   const renderPedido = ({ item }) => {
     const isPendiente = item.estado === 'pendiente';
-    const textColor = isPendiente ? '#000000' : '#FFFFFF';
-    const textMutedColor = isPendiente ? '#555555' : '#F3F4F6';
+    const textColor = isPendiente ? '#0F172A' : '#FFFFFF';
+    const textMutedColor = isPendiente ? '#64748B' : '#F3F4F6';
 
     return (
       <View style={[styles.pedidoCard, !isPendiente && styles.pedidoCardListo]}>
@@ -140,8 +140,8 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
               style={[
                 styles.pedidoMetaText,
                 {
-                  color: textColor,
-                  backgroundColor: isPendiente ? '#E5E7EB' : 'rgba(255, 255, 255, 0.2)',
+                  color: isPendiente ? '#334155' : '#FFFFFF',
+                  backgroundColor: isPendiente ? '#F1F5F9' : 'rgba(255, 255, 255, 0.2)',
                 },
               ]}
             >
@@ -153,8 +153,8 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
               style={[
                 styles.pedidoMetaText,
                 {
-                  color: textColor,
-                  backgroundColor: isPendiente ? '#E5E7EB' : 'rgba(255, 255, 255, 0.2)',
+                  color: isPendiente ? '#334155' : '#FFFFFF',
+                  backgroundColor: isPendiente ? '#F1F5F9' : 'rgba(255, 255, 255, 0.2)',
                 },
               ]}
             >
@@ -167,8 +167,7 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
           style={[
             styles.divider,
             {
-              backgroundColor: isPendiente ? '#000000' : '#FFFFFF',
-              opacity: isPendiente ? 0.2 : 0.4,
+              backgroundColor: isPendiente ? 'rgba(92, 139, 248, 0.12)' : 'rgba(255, 255, 255, 0.25)',
             },
           ]}
         />
@@ -197,10 +196,10 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
               styles.notasContainer,
               {
                 backgroundColor: isPendiente
-                  ? 'rgba(234, 179, 8, 0.15)'
+                  ? 'rgba(245, 158, 11, 0.1)'
                   : 'rgba(255, 255, 255, 0.15)',
                 borderColor: isPendiente
-                  ? 'rgba(234, 179, 8, 0.4)'
+                  ? 'rgba(245, 158, 11, 0.3)'
                   : 'rgba(255, 255, 255, 0.4)',
               },
             ]}
@@ -219,7 +218,7 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
                 style={[styles.actionButton, styles.buttonEliminar]}
                 onPress={() => setPedidoAEliminar(item.id)}
               >
-                <Text style={styles.actionButtonText}>🗑️ Borrar</Text>
+                <Text style={[styles.actionButtonText, { color: COLORS.danger }]}>🗑️ Borrar</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionButton, styles.buttonListo]}
@@ -256,7 +255,7 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
         <View style={styles.headerActions}>
           {onSwitchView && (
             <TouchableOpacity style={styles.headerActionButton} onPress={onSwitchView}>
-              <Text style={styles.headerActionText}>Cajero</Text>
+              <Text style={styles.headerActionText}>Volver</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity
@@ -313,7 +312,7 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
                       style={[
                         styles.sucursalFilterButtonText,
                         selectedSucursalId === suc.id &&
-                          styles.sucursalFilterButtonTextSelected,
+                        styles.sucursalFilterButtonTextSelected,
                       ]}
                     >
                       {suc.nombre}
@@ -400,40 +399,48 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.cardElevated,
+    borderBottomColor: 'rgba(92, 139, 248, 0.15)',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 3,
   },
   headerTitle: {
     ...TYPOGRAPHY.h1,
     color: COLORS.primary,
     fontSize: 22,
+    fontWeight: '800',
   },
   headerSubtitle: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
+    color: '#64748B',
   },
   headerActions: {
     flexDirection: 'row',
+    gap: 8,
   },
   headerActionButton: {
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: BORDER_RADIUS.sm,
-    backgroundColor: COLORS.card,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: COLORS.border,
-    marginLeft: 8,
+    borderColor: 'rgba(92, 139, 248, 0.15)',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   headerActionText: {
-    color: COLORS.text,
-    fontWeight: '600',
+    color: '#0F172A',
+    fontWeight: '700',
+    fontSize: 13,
   },
   logoutButton: {
-    borderColor: COLORS.danger,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
   },
   logoutButtonText: {
     color: COLORS.danger,
@@ -448,6 +455,7 @@ const styles = StyleSheet.create({
   loaderText: {
     marginTop: SPACING.md,
     ...TYPOGRAPHY.bodyMuted,
+    color: '#64748B',
   },
   content: {
     flex: 1,
@@ -458,7 +466,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...TYPOGRAPHY.h2,
-    color: COLORS.text,
+    color: '#0F172A',
+    fontWeight: '800',
     marginBottom: SPACING.sm,
     marginTop: SPACING.md,
   },
@@ -468,6 +477,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...TYPOGRAPHY.bodyMuted,
+    color: '#64748B',
     fontStyle: 'italic',
     marginBottom: SPACING.md,
   },
@@ -479,20 +489,21 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     borderLeftWidth: 6,
-    borderLeftColor: COLORS.warning,
-    borderWidth: 2,
-    borderColor: '#000000',
+    borderLeftColor: '#F59E0B',
+    borderWidth: 1,
+    borderColor: 'rgba(92, 139, 248, 0.15)',
     marginBottom: SPACING.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
     elevation: 3,
   },
   pedidoCardListo: {
-    borderLeftColor: '#FFFFFF',
-    backgroundColor: COLORS.success,
-    borderColor: COLORS.success,
+    backgroundColor: '#10B981',
+    borderLeftWidth: 6,
+    borderLeftColor: '#059669',
+    borderColor: '#10B981',
   },
   pedidoHeader: {
     flexDirection: 'row',
@@ -501,20 +512,20 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   pedidoId: {
-    fontSize: 22,
-    fontWeight: '900',
+    fontSize: 20,
+    fontWeight: '800',
   },
   pedidoTime: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
   },
   pedidoInfo: {
     flexDirection: 'row',
-    gap: SPACING.md,
+    gap: SPACING.sm,
     marginBottom: SPACING.sm,
   },
   pedidoMetaText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     paddingHorizontal: SPACING.sm,
     paddingVertical: 4,
@@ -522,7 +533,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   divider: {
-    height: 2,
+    height: 1,
     marginVertical: SPACING.sm,
   },
   detallesContainer: {
@@ -534,13 +545,13 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   detalleCantidad: {
-    fontSize: 20,
-    fontWeight: '950',
-    width: 45,
+    fontSize: 18,
+    fontWeight: '800',
+    width: 42,
   },
   detalleNombre: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
     flex: 1,
   },
   notasContainer: {
@@ -550,12 +561,12 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   notasTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
     marginBottom: 2,
   },
   notasText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   actionContainer: {
@@ -563,12 +574,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   actionButton: {
-    paddingVertical: SPACING.sm + 2,
-    paddingHorizontal: SPACING.xl,
+    paddingVertical: 10,
+    paddingHorizontal: SPACING.lg,
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 150,
+    minWidth: 140,
   },
   buttonListo: {
     backgroundColor: COLORS.success,
@@ -581,7 +592,7 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: '#FFF',
     fontWeight: '800',
-    fontSize: 16,
+    fontSize: 14,
   },
   actionRow: {
     flexDirection: 'row',
@@ -590,13 +601,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   buttonEliminar: {
-    backgroundColor: COLORS.danger,
-    borderColor: COLORS.danger,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
     borderWidth: 1,
   },
   confirmOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
@@ -604,12 +615,17 @@ const styles = StyleSheet.create({
   confirmBox: {
     width: '100%',
     maxWidth: 340,
-    backgroundColor: COLORS.card,
+    backgroundColor: '#FFFFFF',
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(92, 139, 248, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
   },
   confirmEmoji: {
     fontSize: 48,
@@ -619,12 +635,14 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.h2,
     textAlign: 'center',
     marginBottom: SPACING.sm,
+    color: '#0F172A',
   },
   confirmText: {
     ...TYPOGRAPHY.bodyMuted,
     textAlign: 'center',
     marginBottom: SPACING.lg,
     lineHeight: 20,
+    color: '#64748B',
   },
   confirmButtons: {
     flexDirection: 'row',
@@ -640,10 +658,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   confirmBtnCancel: {
-    backgroundColor: COLORS.cardElevated,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   confirmBtnCancelText: {
-    color: COLORS.text,
+    color: '#475569',
     fontWeight: '700',
   },
   confirmBtnDelete: {
@@ -654,19 +674,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sucursalFilterCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: '#FFFFFF',
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(92, 139, 248, 0.15)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   sucursalFilterLabel: {
-    fontSize: 13,
-    color: COLORS.textMuted,
+    fontSize: 12,
+    color: '#64748B',
     fontWeight: '800',
     marginBottom: SPACING.xs,
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   sucursalFilterList: {
     paddingVertical: 4,
@@ -676,9 +701,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.cardElevated,
+    backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#E2E8F0',
   },
   sucursalFilterButtonSelected: {
     backgroundColor: COLORS.primary,
@@ -686,11 +711,11 @@ const styles = StyleSheet.create({
   },
   sucursalFilterButtonText: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: '#64748B',
     fontWeight: '600',
   },
   sucursalFilterButtonTextSelected: {
-    color: COLORS.textLight,
+    color: '#FFFFFF',
     fontWeight: '800',
   },
 });

@@ -74,14 +74,20 @@ export const PRODUCT_IMAGES = {
 };
 
 /**
- * Retorna la imagen que corresponde al nombre del producto.
+ * Retorna la imagen que corresponde al nombre del producto o su URL personalizada.
  * Siempre retorna un valor válido para el prop `source` de <Image>:
- * - Imágenes locales (require): se retornan como número directamente.
- * - URLs remotas: se retornan como { uri: '...' }.
+ * - Si se provee una URL personalizada válida (imagen_url), se retorna { uri: customUrl }.
+ * - Si coincide con imágenes locales (require), se retornan como número directamente.
+ * - URLs remotas por defecto: se retornan como { uri: '...' }.
  * @param {string} name Nombre del producto.
+ * @param {string|null} customUrl URL opcional personalizada cargada desde el CMS.
  * @returns {number|{uri: string}} Fuente de imagen válida para React Native.
  */
-export const getProductImage = (name) => {
+export const getProductImage = (name, customUrl = null) => {
+  if (customUrl && typeof customUrl === 'string' && customUrl.trim().length > 0) {
+    return { uri: customUrl.trim() };
+  }
+
   if (!name) return { uri: PRODUCT_IMAGES.default };
   const normalized = name.toLowerCase();
 
@@ -104,6 +110,24 @@ export const getProductImage = (name) => {
 
   return { uri: PRODUCT_IMAGES.default };
 };
+
+/**
+ * Galería de presets fotográficos gastronómicos de alta resolución para el CMS.
+ */
+export const FOOD_PRESET_IMAGES = [
+  { label: 'Smash Simple', url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&auto=format&fit=crop&q=80' },
+  { label: 'Smash Doble Bacon', url: 'https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=600&auto=format&fit=crop&q=80' },
+  { label: 'Burger Queso & Cebolla', url: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=600&auto=format&fit=crop&q=80' },
+  { label: 'Lomito Completo', url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80' },
+  { label: 'Sándwich Especial', url: 'https://images.unsplash.com/photo-1509722747041-616f39b57569?w=600&auto=format&fit=crop&q=80' },
+  { label: 'Pizza Muzzarella', url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&auto=format&fit=crop&q=80' },
+  { label: 'Pizza Pepperoni', url: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?w=600&auto=format&fit=crop&q=80' },
+  { label: 'Papas Fritas Clásicas', url: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=600&auto=format&fit=crop&q=80' },
+  { label: 'Papas Cheddar & Bacon', url: 'https://images.unsplash.com/photo-1585109649139-366815a0d713?w=600&auto=format&fit=crop&q=80' },
+  { label: 'Gaseosa / Refresco', url: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=600&auto=format&fit=crop&q=80' },
+  { label: 'Cerveza Fría', url: 'https://images.unsplash.com/photo-1608270586620-248524c67de9?w=600&auto=format&fit=crop&q=80' },
+  { label: 'Postre / Helado', url: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=600&auto=format&fit=crop&q=80' },
+];
 
 /**
  * Retorna la imagen de icono que corresponde al nombre de la categoría.

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -13,22 +13,55 @@ import {
   Platform,
   StatusBar,
   Image,
+  useWindowDimensions,
+  Animated,
+  Easing,
 } from 'react-native';
 import orderService from '../services/OrderService';
 import productService from '../services/ProductService';
 import statsService from '../services/StatsService';
 import authService from '../services/AuthService';
+import carritoService from '../services/CarritoService';
 import PersonalScreen from './admin/PersonalScreen';
+import PagosScreen from './admin/PagosScreen';
+import facturaService from '../services/FacturaService';
+import FacturasScreen from './admin/FacturasScreen';
+import TicketFacturaModal from '../components/TicketFacturaModal';
+import BalanceScreen from './admin/BalanceScreen';
+import MenuCmsScreen from './admin/MenuCmsScreen';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../theme/theme';
 import { getProductImage, APP_ICONS, getCategoryIcon } from '../theme/assets';
 
-// ─── Utilidades de formato ────────────────────────────────────────────────────
+// ─── Utilidades de formato y estética estilo Spotify ──────────────────────────
 
-const formatPrice = (value) => value.toLocaleString('es-AR');
+const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
 export default function CajeroScreen({ userProfile, onSwitchView }) {
+  // ─── Lógica Responsive (Móvil, Tablet, Desktop) ──────────────────────────────
+  const { width: windowWidth } = useWindowDimensions();
+  const isMobile = windowWidth < 600;
+  const isTablet = windowWidth >= 600 && windowWidth < 1024;
+  const isDesktop = windowWidth >= 1024;
+
+  // Cantidad de columnas dinámicas para la grilla
+  const numColumns = isMobile ? 2 : isTablet ? 3 : 4;
+
+  // Ancho simétrico para alinear Header, Search, Grilla y Carrito
+  const containerWidth = Math.min(1150, windowWidth - (isMobile ? 20 : 32));
+
+  // Dimensiones proporcionales calculadas para cada tarjeta
+  const cardGap = isMobile ? 10 : 14;
+  const cardWidth = Math.floor((containerWidth - (numColumns - 1) * cardGap) / numColumns);
+  const cardHeight = isMobile ? 116 : isTablet ? 134 : 146;
+  const cardTitleSize = isMobile ? 15 : isTablet ? 17 : 19;
+  const cardTitleLineHeight = isMobile ? 18 : isTablet ? 21 : 23;
+  const cardPriceSize = isMobile ? 13 : isTablet ? 15 : 16;
+  const cardImageSize = isMobile ? 70 : isTablet ? 84 : 96;
+  const cardImageRight = isMobile ? -10 : isTablet ? -12 : -14;
+  const cardImageBottom = isMobile ? -6 : isTablet ? -8 : -10;
+
   // Estado del catálogo
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -54,7 +87,54 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
   // Estado de UI
   const [statusMessage, setStatusMessage] = useState({ text: '', type: '' });
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+  const [drawerActiveTab, setDrawerActiveTab] = useState('servicios');
   const [pedidoAEliminar, setPedidoAEliminar] = useState(null);
+
+  // Animaciones del menú lateral (despliegue de derecha a izquierda)
+  const drawerSlideAnim = useRef(new Animated.Value(500)).current;
+  const drawerBackdropAnim = useRef(new Animated.Value(0)).current;
+
+  const openDrawer = () => {
+    drawerSlideAnim.setValue(500);
+    drawerBackdropAnim.setValue(0);
+    setIsDrawerVisible(true);
+    Animated.parallel([
+      Animated.timing(drawerSlideAnim, {
+        toValue: 0,
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(drawerBackdropAnim, {
+        toValue: 1,
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const closeDrawer = (callback) => {
+    Animated.parallel([
+      Animated.timing(drawerSlideAnim, {
+        toValue: 500,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(drawerBackdropAnim, {
+        toValue: 0,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setIsDrawerVisible(false);
+      if (typeof callback === 'function') {
+        callback();
+      }
+    });
+  };
 
   // Estado de estadísticas (solo admins)
   const [isStatsVisible, setIsStatsVisible] = useState(false);
@@ -66,11 +146,17 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
     transacciones: [],
   });
 
-  // Estado de módulos admin
+  // Estado de módulos admin y facturación
   const [isPersonalVisible, setIsPersonalVisible] = useState(false);
+  const [isPagosVisible, setIsPagosVisible] = useState(false);
+  const [isFacturasVisible, setIsFacturasVisible] = useState(false);
+  const [isCmsVisible, setIsCmsVisible] = useState(false);
+  const [ultimoComprobante, setUltimoComprobante] = useState(null);
+  const [clienteRuc, setClienteRuc] = useState('');
+  const [condicionVenta, setCondicionVenta] = useState('contado');
 
   const esAdmin =
-    userProfile?.rol === 'admin' || userProfile?.nombre === 'carlosrubenrey';
+    userProfile?.rol?.toLowerCase()?.trim() === 'admin';
 
   // ─── Carga inicial ────────────────────────────────────────────────────────────
 
@@ -116,39 +202,18 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
     }
   };
 
-  // ─── Handlers del Carrito ─────────────────────────────────────────────────────
+  // ─── Handlers del Carrito (delegados a CarritoService) ───────────────────────
 
   const agregarProducto = (producto) => {
-    setCarrito((prev) => {
-      const existente = prev.find((item) => item.producto.id === producto.id);
-      if (existente) {
-        return prev.map((item) =>
-          item.producto.id === producto.id
-            ? { ...item, cantidad: item.cantidad + 1 }
-            : item
-        );
-      }
-      return [...prev, { producto, cantidad: 1 }];
-    });
+    setCarrito((prev) => carritoService.agregar(prev, producto));
   };
 
   const disminuirProducto = (producto) => {
-    setCarrito((prev) => {
-      const existente = prev.find((item) => item.producto.id === producto.id);
-      if (!existente) return prev;
-      if (existente.cantidad > 1) {
-        return prev.map((item) =>
-          item.producto.id === producto.id
-            ? { ...item, cantidad: item.cantidad - 1 }
-            : item
-        );
-      }
-      return prev.filter((item) => item.producto.id !== producto.id);
-    });
+    setCarrito((prev) => carritoService.disminuir(prev, producto));
   };
 
   const eliminarProducto = (productoId) => {
-    setCarrito((prev) => prev.filter((item) => item.producto.id !== productoId));
+    setCarrito((prev) => carritoService.eliminar(prev, productoId));
   };
 
   // ─── Handler de Pedido ────────────────────────────────────────────────────────
@@ -160,7 +225,7 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
       setSavingOrder(true);
 
       // OrderService maneja toda la lógica: validación, cálculo de total, FK check y persistencia
-      await orderService.crearPedido(carrito, {
+      const nuevoPedido = await orderService.crearPedido(carrito, {
         mesa,
         cliente,
         notas,
@@ -169,14 +234,46 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
         usuarioId: userProfile?.id || null,
       });
 
+      // Clonar ítems del carrito para el comprobante
+      const itemsComprobante = [...carrito];
+      const rucEmitido = clienteRuc;
+      const condEmitida = condicionVenta;
+      const pagoEmitido = metodoPago;
+      const clienteEmitido = cliente;
+
       // Reset del formulario tras éxito
-      setCarrito([]);
+      setCarrito(carritoService.vaciar());
       setMesa('');
       setCliente('');
       setNotas('');
+      setClienteRuc('');
+      setCondicionVenta('contado');
       setMetodoPago('efectivo');
       setIsCartVisible(false);
       showStatus('¡Pedido enviado con éxito!', 'success');
+
+      // Generar automáticamente la factura legal / comprobante
+      try {
+        if (nuevoPedido && nuevoPedido.id) {
+          const facturaGenerada = await facturaService.generarFacturaDePedido(
+            nuevoPedido,
+            itemsComprobante,
+            {
+              clienteNombre: clienteEmitido,
+              clienteRuc: rucEmitido,
+              condicionVenta: condEmitida,
+              metodoPago: pagoEmitido,
+            },
+            userProfile?.id
+          );
+          setUltimoComprobante({
+            factura: facturaGenerada,
+            items: facturaGenerada.items,
+          });
+        }
+      } catch (errFactura) {
+        console.error('Error generando factura/ticket automático:', errFactura.message);
+      }
     } catch (error) {
       console.error('Error guardando pedido:', error.message);
       showStatus('Error al registrar el pedido', 'error');
@@ -236,6 +333,220 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
     0
   );
 
+  // ─── Pestañas y Opciones del Menú Lateral Doble Columna (Rediseñado) ────────
+  const drawerTabs = [
+    {
+      id: 'servicios',
+      label: 'Servicios',
+      icon: APP_ICONS.todos,
+      pill: 'Dashboard / POS',
+      onPillPress: () => closeDrawer(),
+      items: [
+        {
+          label: 'Terminal de Pedidos',
+          onPress: () => closeDrawer(),
+        },
+        {
+          label: 'Recargar Catálogo',
+          onPress: () => {
+            closeDrawer(cargarDatos);
+          },
+        },
+        ...(ultimoComprobante
+          ? [
+            {
+              label: 'Ver Último Ticket',
+              onPress: () => {
+                closeDrawer(() => setIsFacturasVisible(true));
+              },
+            },
+          ]
+          : []),
+        {
+          label: 'Limpiar Carrito Actual',
+          onPress: () => {
+            closeDrawer(() => setCarrito(carritoService.vaciar()));
+          },
+        },
+      ],
+    },
+    ...(onSwitchView
+      ? [
+        {
+          id: 'cocina',
+          label: 'Cocina',
+          icon: APP_ICONS.kitchen,
+          pill: 'Pantalla de Cocina',
+          onPillPress: () => {
+            closeDrawer(onSwitchView);
+          },
+          items: [
+            {
+              label: 'Comandas Activas',
+              onPress: () => {
+                closeDrawer(onSwitchView);
+              },
+            },
+            {
+              label: 'Control de Preparación',
+              onPress: () => {
+                closeDrawer(onSwitchView);
+              },
+            },
+          ],
+        },
+      ]
+      : []),
+    ...(esAdmin
+      ? [
+        {
+          id: 'finanzas',
+          label: 'Finanzas',
+          icon: APP_ICONS.statistics,
+          pill: 'Balance y Finanzas',
+          onPillPress: () => {
+            closeDrawer(() => setIsStatsVisible(true));
+          },
+          items: [
+            {
+              label: 'Métricas de Ventas',
+              onPress: () => {
+                closeDrawer(() => setIsStatsVisible(true));
+              },
+            },
+            {
+              label: 'Arqueo de Caja',
+              onPress: () => {
+                closeDrawer(() => setIsStatsVisible(true));
+              },
+            },
+            {
+              label: 'Desglose de Cobros',
+              onPress: () => {
+                closeDrawer(() => setIsStatsVisible(true));
+              },
+            },
+          ],
+        },
+        {
+          id: 'personal',
+          label: 'Personal',
+          icon: APP_ICONS.userDefault,
+          pill: 'Gestión de Personal',
+          onPillPress: () => {
+            closeDrawer(() => setIsPersonalVisible(true));
+          },
+          items: [
+            {
+              label: 'Plantel de Empleados',
+              onPress: () => {
+                closeDrawer(() => setIsPersonalVisible(true));
+              },
+            },
+            {
+              label: 'Registrar Empleado',
+              onPress: () => {
+                closeDrawer(() => setIsPersonalVisible(true));
+              },
+            },
+            {
+              label: 'Control de Salarios',
+              onPress: () => {
+                closeDrawer(() => setIsPersonalVisible(true));
+              },
+            },
+          ],
+        },
+        {
+          id: 'compras',
+          label: 'Compras',
+          icon: APP_ICONS.statistics,
+          pill: 'Pagos y Proveedores',
+          onPillPress: () => {
+            closeDrawer(() => setIsPagosVisible(true));
+          },
+          items: [
+            {
+              label: 'Facturas y Comprobantes',
+              onPress: () => {
+                closeDrawer(() => setIsFacturasVisible(true));
+              },
+            },
+            {
+              label: 'Directorio de Proveedores',
+              onPress: () => {
+                closeDrawer(() => setIsPagosVisible(true));
+              },
+            },
+            {
+              label: 'Registro de Gastos',
+              onPress: () => {
+                closeDrawer(() => setIsPagosVisible(true));
+              },
+            },
+          ],
+        },
+        {
+          id: 'catalogo',
+          label: 'Catálogo',
+          icon: APP_ICONS.hamburguesa || APP_ICONS.todos,
+          pill: 'CMS Menú y Precios',
+          onPillPress: () => {
+            closeDrawer(() => setIsCmsVisible(true));
+          },
+          items: [
+            {
+              label: 'Modificar Platos y Precios',
+              onPress: () => {
+                closeDrawer(() => setIsCmsVisible(true));
+              },
+            },
+            {
+              label: 'Administrar Categorías',
+              onPress: () => {
+                closeDrawer(() => setIsCmsVisible(true));
+              },
+            },
+            {
+              label: 'Control de Disponibilidad',
+              onPress: () => {
+                closeDrawer(() => setIsCmsVisible(true));
+              },
+            },
+          ],
+        },
+      ]
+      : []),
+    {
+      id: 'cuenta',
+      label: 'Cuenta',
+      icon: APP_ICONS.admin,
+      pill: userProfile?.nombre || 'Mi Perfil',
+      pillSubtitle: userProfile?.rol?.toUpperCase() || 'CAJERO',
+      onPillPress: () => { },
+      items: [
+        {
+          label: `Sucursal: ${getSucursalName(userProfile?.sucursal_id)}`,
+          onPress: () => { },
+        },
+        {
+          label: userProfile?.email || 'Sin correo',
+          onPress: () => { },
+        },
+        {
+          label: 'Cerrar Sesión',
+          isDanger: true,
+          onPress: () => {
+            closeDrawer(handleLogout);
+          },
+        },
+      ],
+    },
+  ];
+
+  const currentDrawerTab =
+    drawerTabs.find((t) => t.id === drawerActiveTab) || drawerTabs[0];
+
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
@@ -244,32 +555,34 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
 
       {/* HEADER */}
       <View style={styles.header}>
-        <View style={styles.headerTitleBlock}>
-          <Text style={styles.headerTitle}>El Carro</Text>
-          <View style={styles.headerUserBlock}>
-            <Image
-              source={esAdmin ? APP_ICONS.admin : APP_ICONS.userDefault}
-              style={styles.headerUserIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.headerSubtitle}>
-              {userProfile?.nombre || 'Invitado'}
-            </Text>
+        <View style={[styles.headerInner, { width: containerWidth }]}>
+          <View style={styles.headerTitleBlock}>
+            <Text style={styles.headerTitle}>Manageopy</Text>
+            <View style={styles.headerUserBlock}>
+              <Image
+                source={esAdmin ? APP_ICONS.admin : APP_ICONS.userDefault}
+                style={styles.headerUserIcon}
+                resizeMode="contain"
+              />
+              <Text style={styles.headerSubtitle}>
+                {userProfile?.nombre || 'Invitado'}
+              </Text>
+            </View>
           </View>
-        </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => setIsDrawerVisible(true)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.menuButtonText}>☰ Menú</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.menuButton}
+              onPress={openDrawer}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.menuButtonText}>☰ Menú</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
       {/* SEARCH BAR */}
-      <View style={styles.searchContainer}>
+      <View style={[styles.searchContainer, { width: containerWidth }]}>
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar platos o bebidas..."
@@ -292,6 +605,7 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
         <View
           style={[
             styles.statusBanner,
+            { width: containerWidth },
             statusMessage.type === 'error'
               ? styles.statusBannerError
               : styles.statusBannerSuccess,
@@ -309,11 +623,12 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
         </View>
       ) : (
         <FlatList
+          key={`grid-cols-${numColumns}`}
           data={productosFiltrados}
           keyExtractor={(item) => item.id.toString()}
-          numColumns={2}
-          contentContainerStyle={styles.listContent}
-          columnWrapperStyle={styles.rowWrapper}
+          numColumns={numColumns}
+          contentContainerStyle={[styles.listContent, { width: containerWidth }]}
+          columnWrapperStyle={[styles.rowWrapper, { gap: cardGap, marginBottom: cardGap }]}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
@@ -323,38 +638,99 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
               </Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.productCard}
-              activeOpacity={0.8}
-              onPress={() => agregarProducto(item)}
-            >
-              <Image
-                source={getProductImage(item.nombre)}
-                style={styles.productImage}
-                resizeMode="cover"
-              />
-              <View style={styles.productInfo}>
-                <Text style={styles.productName} numberOfLines={2}>
-                  {item.nombre}
-                </Text>
-                <View style={styles.priceContainer}>
-                  <Text style={styles.productPrice}>
+          renderItem={({ item }) => {
+            const isDisponible = item.disponible !== false;
+            const cantidadEnCarrito = carritoService.getCantidad(carrito, item.id);
+
+            return (
+              <TouchableOpacity
+                style={[
+                  styles.productCard,
+                  {
+                    width: cardWidth,
+                    height: cardHeight,
+                    backgroundColor: COLORS.cardProductBackground,
+                  },
+                  !isDisponible && styles.productCardDisabled,
+                ]}
+                activeOpacity={0.85}
+                onPress={() => {
+                  if (!isDisponible) {
+                    showStatus(`"${item.nombre}" está agotado en cocina`, 'error');
+                    return;
+                  }
+                  agregarProducto(item);
+                }}
+              >
+                {/* Texto del Producto: Nombre y Monto abajo */}
+                <View style={styles.cardTextContainer}>
+                  <Text
+                    style={[
+                      styles.productName,
+                      {
+                        fontSize: cardTitleSize,
+                        lineHeight: cardTitleLineHeight,
+                      },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {item.nombre}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.productPrice,
+                      {
+                        fontSize: cardPriceSize,
+                      },
+                    ]}
+                  >
                     Gs. {formatPrice(item.precio)}
                   </Text>
-                  <View style={styles.addButton}>
-                    <Text style={styles.addButtonText}>+</Text>
-                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-          )}
+
+                {/* Imagen del Producto Rotada al Fondo Derecho (Estilo Spotify) */}
+                <View
+                  style={[
+                    styles.imageThumbnailWrapper,
+                    {
+                      width: cardImageSize,
+                      height: cardImageSize,
+                      right: cardImageRight,
+                      bottom: cardImageBottom,
+                    },
+                  ]}
+                >
+                  <Image
+                    source={getProductImage(item.nombre, item.imagen_url)}
+                    style={styles.productImage}
+                    resizeMode="cover"
+                  />
+                </View>
+
+                {/* Overlay si está agotado */}
+                {!isDisponible && (
+                  <View style={styles.agotadoOverlay}>
+                    <View style={styles.badgeAgotado}>
+                      <Text style={styles.badgeAgotadoText}>AGOTADO</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Badge discreto si ya se agregó al carrito */}
+                {cantidadEnCarrito > 0 && isDisponible && (
+                  <View style={styles.badgeCarrito}>
+                    <Text style={styles.badgeCarritoText}>✓ {cantidadEnCarrito}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          }}
         />
       )}
 
       {/* FLOATING CART BUTTON */}
       {carrito.length > 0 && (
-        <View style={styles.floatingCartContainer}>
+        <View style={[styles.floatingCartContainer, { width: containerWidth }]}>
           <TouchableOpacity
             style={styles.floatingCartButton}
             activeOpacity={0.9}
@@ -377,8 +753,12 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
           horizontal
           showsHorizontalScrollIndicator={false}
           data={categorias}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.bottomTabList}
+          keyExtractor={(item) => String(item.id)}
+          style={styles.bottomTabFlatList}
+          contentContainerStyle={[
+            styles.bottomTabList,
+            (categorias.length * 96 < windowWidth) && styles.bottomTabListCentered,
+          ]}
           renderItem={({ item }) => {
             const isSelected = selectedCategoryId === item.id;
             return (
@@ -392,7 +772,10 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
               >
                 <Image
                   source={getCategoryIcon(item.nombre)}
-                  style={styles.bottomTabIcon}
+                  style={[
+                    styles.bottomTabIcon,
+                    isSelected && styles.bottomTabIconSelected,
+                  ]}
                   resizeMode="contain"
                 />
                 <Text
@@ -400,6 +783,7 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                     styles.bottomTabText,
                     isSelected && styles.bottomTabTextSelected,
                   ]}
+                  numberOfLines={1}
                 >
                   {item.nombre}
                 </Text>
@@ -412,12 +796,20 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
       {/* ── CART MODAL ─────────────────────────────────────────────────────── */}
       <Modal
         visible={isCartVisible}
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         onRequestClose={() => setIsCartVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setIsCartVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalContainer}
+            activeOpacity={1}
+            onPress={(e) => e?.stopPropagation?.()}
+          >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Pedido Actual</Text>
               <TouchableOpacity
@@ -503,6 +895,43 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                     </View>
                   </View>
 
+                  <View style={styles.formRow}>
+                    <View style={styles.formHalfInputWrapper}>
+                      <Text style={styles.formInputLabel}>RUC / C.I. (Factura)</Text>
+                      <TextInput
+                        style={styles.formInput}
+                        placeholder="Ej. 44444401-7 o CI"
+                        placeholderTextColor={COLORS.textMuted}
+                        value={clienteRuc}
+                        onChangeText={setClienteRuc}
+                      />
+                    </View>
+                    <View style={styles.formHalfInputWrapper}>
+                      <Text style={styles.formInputLabel}>Condición</Text>
+                      <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+                        {['contado', 'credito'].map((cond) => (
+                          <TouchableOpacity
+                            key={cond}
+                            style={[
+                              styles.condicionBadge,
+                              condicionVenta === cond && styles.condicionBadgeActive,
+                            ]}
+                            onPress={() => setCondicionVenta(cond)}
+                          >
+                            <Text
+                              style={[
+                                styles.condicionBadgeText,
+                                condicionVenta === cond && styles.condicionBadgeTextActive,
+                              ]}
+                            >
+                              {cond === 'contado' ? 'Contado' : 'Crédito'}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+
                   <Text style={styles.formInputLabel}>
                     Método de Pago (Estadísticas)
                   </Text>
@@ -514,7 +943,7 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                           style={[
                             styles.paymentOption,
                             metodoPago === metodo &&
-                              styles.paymentOptionSelected,
+                            styles.paymentOptionSelected,
                           ]}
                           onPress={() => setMetodoPago(metodo)}
                         >
@@ -522,16 +951,16 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                             style={[
                               styles.paymentOptionText,
                               metodoPago === metodo &&
-                                styles.paymentOptionTextSelected,
+                              styles.paymentOptionTextSelected,
                             ]}
                           >
                             {metodo === 'efectivo'
                               ? 'Efectivo'
                               : metodo === 'tarjeta'
-                              ? 'Tarjeta'
-                              : metodo === 'transferencia'
-                              ? 'Transfer'
-                              : 'Deber'}
+                                ? 'Tarjeta'
+                                : metodo === 'transferencia'
+                                  ? 'Transfer'
+                                  : 'Deber'}
                           </Text>
                         </TouchableOpacity>
                       )
@@ -576,361 +1005,156 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                 )}
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── DRAWER MODAL (Menú lateral) ─────────────────────────────────────── */}
-      <Modal
-        visible={isDrawerVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsDrawerVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.drawerOverlay}
-          activeOpacity={1}
-          onPress={() => setIsDrawerVisible(false)}
-        >
-          <TouchableOpacity style={styles.drawerContainer} activeOpacity={1}>
-            <View style={styles.drawerHeader}>
-              <Text style={styles.drawerTitle}>Menú</Text>
-              <TouchableOpacity
-                onPress={() => setIsDrawerVisible(false)}
-                style={styles.drawerCloseButton}
-              >
-                <Text style={styles.drawerCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.drawerProfileSection}>
-              <Image
-                source={esAdmin ? APP_ICONS.admin : APP_ICONS.userDefault}
-                style={styles.drawerProfileIconImage}
-                resizeMode="contain"
-              />
-              <Text style={styles.drawerProfileName}>
-                {userProfile?.nombre || 'Invitado'}
-              </Text>
-              <Text style={styles.drawerProfileRole}>
-                {userProfile?.rol?.toUpperCase() || 'CAJERO'}
-              </Text>
-            </View>
-
-            <View style={styles.drawerDivider} />
-
-            <View style={styles.drawerMenuOptions}>
-              {onSwitchView && (
-                <TouchableOpacity
-                  style={styles.drawerOption}
-                  onPress={() => {
-                    setIsDrawerVisible(false);
-                    onSwitchView();
-                  }}
-                >
-                  <Image
-                    source={APP_ICONS.kitchen}
-                    style={styles.drawerOptionIconImage}
-                    resizeMode="contain"
-                  />
-                  <Text style={styles.drawerOptionText}>Ir a Cocina</Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={styles.drawerOption}
-                onPress={() => {
-                  setIsDrawerVisible(false);
-                  cargarDatos();
-                }}
-              >
-                <Image
-                  source={APP_ICONS.reload}
-                  style={styles.drawerOptionIconImage}
-                  resizeMode="contain"
-                />
-                <Text style={styles.drawerOptionText}>Recargar Datos</Text>
-              </TouchableOpacity>
-
-              {esAdmin && (
-                <>
-                  <TouchableOpacity
-                    style={styles.drawerOption}
-                    onPress={() => {
-                      setIsDrawerVisible(false);
-                      setIsStatsVisible(true);
-                      cargarEstadisticas();
-                    }}
-                  >
-                    <Image
-                      source={APP_ICONS.statistics}
-                      style={styles.drawerOptionIconImage}
-                      resizeMode="contain"
-                    />
-                    <Text style={styles.drawerOptionText}>
-                      Estadísticas (Admin)
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.drawerOption}
-                    onPress={() => {
-                      setIsDrawerVisible(false);
-                      setIsPersonalVisible(true);
-                    }}
-                  >
-                    <Image
-                      source={APP_ICONS.userDefault}
-                      style={[styles.drawerOptionIconImage, { tintColor: '#63B3ED' }]}
-                      resizeMode="contain"
-                    />
-                    <Text style={styles.drawerOptionText}>
-                      Gestión de Personal
-                    </Text>
-                  </TouchableOpacity>
-                </>
-              )}
-
-              <TouchableOpacity
-                style={[styles.drawerOption, styles.drawerOptionLogout]}
-                onPress={() => {
-                  setIsDrawerVisible(false);
-                  handleLogout();
-                }}
-              >
-                <Image
-                  source={APP_ICONS.logout}
-                  style={[
-                    styles.drawerOptionIconImage,
-                    { tintColor: COLORS.danger },
-                  ]}
-                  resizeMode="contain"
-                />
-                <Text style={[styles.drawerOptionText, { color: COLORS.danger }]}>
-                  Cerrar Sesión
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.drawerFooter}>
-              <Text style={styles.drawerVersionText}>El Carro v1.2</Text>
-            </View>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
 
-      {/* ── STATS MODAL (Admin) ─────────────────────────────────────────────── */}
+      {/* ── REDESIGNED DUAL-COLUMN DRAWER (Despliegue lateral de derecha a izquierda) ─────────────── */}
+      <Modal
+        visible={isDrawerVisible}
+        animationType="none"
+        transparent={true}
+        onRequestClose={() => closeDrawer()}
+      >
+        <View style={styles.drawerOverlay}>
+          {/* Backdrop con fade animado */}
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: 'rgba(15, 23, 42, 0.45)', opacity: drawerBackdropAnim },
+            ]}
+          >
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => closeDrawer()}
+            />
+          </Animated.View>
+
+          {/* Panel Drawer con animación suave de derecha a izquierda */}
+          <Animated.View
+            style={[
+              styles.dualDrawerContainer,
+              { transform: [{ translateX: drawerSlideAnim }] },
+            ]}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              style={styles.dualDrawerInner}
+            >
+              {/* COLUMNA 1: RAIL LATERAL OSCURO (NAVY) */}
+              <View style={styles.railColumn}>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.railScrollContent}
+                >
+                  {drawerTabs.map((tab) => {
+                    const isSelected = currentDrawerTab.id === tab.id;
+                    return (
+                      <TouchableOpacity
+                        key={tab.id}
+                        style={[
+                          styles.railTabItem,
+                          isSelected && styles.railTabItemSelected,
+                        ]}
+                        onPress={() => setDrawerActiveTab(tab.id)}
+                        activeOpacity={0.8}
+                      >
+                        <Image
+                          source={tab.icon}
+                          style={[
+                            styles.railTabIcon,
+                            { tintColor: isSelected ? COLORS.primary : 'rgba(0, 0, 0, 0.45)' },
+                          ]}
+                          resizeMode="contain"
+                        />
+                        <Text
+                          style={[
+                            styles.railTabLabel,
+                            isSelected && styles.railTabLabelSelected,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {tab.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
+              {/* COLUMNA 2: PANEL DE SUBMENÚ (LILAC / LAVENDER) */}
+              <View style={styles.submenuColumn}>
+                {/* Botón cerrar sutil */}
+                <TouchableOpacity
+                  style={styles.submenuCloseBtn}
+                  onPress={() => closeDrawer()}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.submenuCloseText}>✕</Text>
+                </TouchableOpacity>
+
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.submenuScrollContent}
+                >
+                  {/* PILL PRINCIPAL DESTACADO (Tipo "Dashboard" en la referencia) */}
+                  <TouchableOpacity
+                    style={styles.submenuMainPill}
+                    onPress={currentDrawerTab.onPillPress}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.submenuMainPillText}>
+                      {currentDrawerTab.pill}
+                    </Text>
+                    {currentDrawerTab.pillSubtitle && (
+                      <Text style={styles.submenuMainPillSub}>
+                        {currentDrawerTab.pillSubtitle}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+
+                  {/* LISTA DE ENLACES / ACCIONES */}
+                  <View style={styles.submenuLinksList}>
+                    {currentDrawerTab.items.map((sub, idx) => (
+                      <TouchableOpacity
+                        key={idx}
+                        style={[
+                          styles.submenuLinkItem,
+                          sub.isDanger && styles.submenuLinkItemDanger,
+                        ]}
+                        onPress={sub.onPress}
+                        activeOpacity={0.65}
+                      >
+                        <Text
+                          style={[
+                            styles.submenuLinkText,
+                            sub.isDanger && styles.submenuLinkDanger,
+                          ]}
+                        >
+                          {sub.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      {/* ── BALANCE Y FINANZAS MODAL (Admin) ───────────────────────── */}
       <Modal
         visible={isStatsVisible}
         animationType="slide"
         transparent={false}
         onRequestClose={() => setIsStatsVisible(false)}
       >
-        <SafeAreaView style={styles.statsScreenContainer}>
-          <View style={styles.statsHeader}>
-            <Text style={styles.statsHeaderTitle}>Estadísticas</Text>
-            <TouchableOpacity
-              style={styles.statsCloseButton}
-              onPress={() => setIsStatsVisible(false)}
-            >
-              <Text style={styles.statsCloseButtonText}>✕ Cerrar</Text>
-            </TouchableOpacity>
-          </View>
-
-          {loadingStats ? (
-            <View style={styles.statsLoader}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={styles.statsLoaderText}>
-                Calculando ventas e inventario...
-              </Text>
-            </View>
-          ) : (
-            <ScrollView
-              style={styles.statsContentContainer}
-              contentContainerStyle={{ paddingBottom: 40 }}
-            >
-              <View style={styles.statsDateRangeCard}>
-                <Text style={styles.statsDateRangeLabel}>Periodo Auditado:</Text>
-                <Text style={styles.statsDateRangeValue}>Últimos 30 días</Text>
-              </View>
-
-              {/* SELECTOR DE SUCURSAL (Solo admin global) */}
-              {!userProfile?.sucursal_id && sucursales.length > 0 && (
-                <View style={styles.sucursalFilterCard}>
-                  <Text style={styles.sucursalFilterLabel}>Filtrar por Local:</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.sucursalFilterList}
-                  >
-                    <TouchableOpacity
-                      style={[
-                        styles.sucursalFilterButton,
-                        selectedSucursalId === 'all' &&
-                          styles.sucursalFilterButtonSelected,
-                      ]}
-                      onPress={() => {
-                        setSelectedSucursalId('all');
-                        cargarEstadisticas('all');
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.sucursalFilterButtonText,
-                          selectedSucursalId === 'all' &&
-                            styles.sucursalFilterButtonTextSelected,
-                        ]}
-                      >
-                        Todas
-                      </Text>
-                    </TouchableOpacity>
-                    {sucursales.map((suc) => (
-                      <TouchableOpacity
-                        key={suc.id}
-                        style={[
-                          styles.sucursalFilterButton,
-                          selectedSucursalId === suc.id &&
-                            styles.sucursalFilterButtonSelected,
-                        ]}
-                        onPress={() => {
-                          setSelectedSucursalId(suc.id);
-                          cargarEstadisticas(suc.id);
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.sucursalFilterButtonText,
-                            selectedSucursalId === suc.id &&
-                              styles.sucursalFilterButtonTextSelected,
-                          ]}
-                        >
-                          {suc.nombre}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
-
-              {/* KPI: Ingresos Totales */}
-              <View style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>INGRESOS TOTALES</Text>
-                <Text style={styles.kpiValue}>
-                  Gs. {formatPrice(stats.totalVentas)}
-                </Text>
-                <Text style={styles.kpiSub}>Último mes acumulado</Text>
-              </View>
-
-              {/* Métodos de Pago */}
-              <View style={styles.statsSectionCard}>
-                <Text style={styles.statsSectionTitle}>Métodos de Pago</Text>
-                <View style={styles.paymentProgressContainer}>
-                  {Object.keys(stats.metodosPago).map((metodo) => {
-                    const monto = stats.metodosPago[metodo] || 0;
-                    const porcentaje =
-                      stats.totalVentas > 0
-                        ? (monto / stats.totalVentas) * 100
-                        : 0;
-                    return (
-                      <View key={metodo} style={styles.paymentProgressItem}>
-                        <View style={styles.paymentProgressHeader}>
-                          <Text style={styles.paymentProgressLabel}>
-                            {metodo.charAt(0).toUpperCase() + metodo.slice(1)}
-                          </Text>
-                          <Text style={styles.paymentProgressValue}>
-                            Gs. {formatPrice(monto)} ({porcentaje.toFixed(0)}%)
-                          </Text>
-                        </View>
-                        <View style={styles.progressBarBg}>
-                          <View
-                            style={[
-                              styles.progressBarFill,
-                              { width: `${porcentaje}%` },
-                            ]}
-                          />
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-
-              {/* Top 5 Productos */}
-              <View style={styles.statsSectionCard}>
-                <Text style={styles.statsSectionTitle}>
-                  Top 5 Productos Más Vendidos
-                </Text>
-                {stats.productosMasVendidos.length === 0 ? (
-                  <Text style={styles.noDataText}>
-                    No hay datos registrados aún.
-                  </Text>
-                ) : (
-                  stats.productosMasVendidos.map((prod, index) => (
-                    <View key={index} style={styles.topProductRow}>
-                      <Text style={styles.topProductIndex}>#{index + 1}</Text>
-                      <Text style={styles.topProductName}>{prod.nombre}</Text>
-                      <Text style={styles.topProductQty}>{prod.cantidad} u.</Text>
-                    </View>
-                  ))
-                )}
-              </View>
-
-              {/* Historial de Movimientos */}
-              <View style={styles.statsSectionCard}>
-                <Text style={styles.statsSectionTitle}>
-                  Historial de Movimientos
-                </Text>
-                <Text style={styles.statsSectionSubTitle}>
-                  Toca el botón rojo para borrar un registro erróneo
-                </Text>
-                {stats.transacciones.length === 0 ? (
-                  <Text style={styles.noDataText}>
-                    No hay transacciones este mes.
-                  </Text>
-                ) : (
-                  stats.transacciones.map((pedido) => (
-                    <View key={pedido.id} style={styles.transactionCard}>
-                      <View style={styles.transactionMainInfo}>
-                        <Text style={styles.transactionId}>
-                          Pedido #{pedido.id.toString().slice(0, 8).toUpperCase()}
-                        </Text>
-                        <Text style={styles.transactionDate}>
-                          {new Date(pedido.created_at).toLocaleDateString()} -{' '}
-                          {new Date(pedido.created_at).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </Text>
-                        <Text style={styles.transactionDetails}>
-                          {pedido.mesa ? `Mesa: ${pedido.mesa}` : ''}
-                          {pedido.cliente ? ` | Cliente: ${pedido.cliente}` : ''}
-                        </Text>
-                        <Text style={styles.transactionPayType}>
-                          Pago: {pedido.metodo_pago?.toUpperCase()}
-                          {!userProfile?.sucursal_id &&
-                            ` | Local: ${getSucursalName(pedido.sucursal_id)}`}
-                        </Text>
-                      </View>
-                      <View style={styles.transactionRightInfo}>
-                        <Text style={styles.transactionTotal}>
-                          Gs. {formatPrice(pedido.total || 0)}
-                        </Text>
-                        <TouchableOpacity
-                          style={styles.deleteTransactionButton}
-                          onPress={() => setPedidoAEliminar(pedido.id)}
-                        >
-                          <Text style={styles.deleteTransactionText}>
-                            🗑️ Borrar
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))
-                )}
-              </View>
-            </ScrollView>
-          )}
-        </SafeAreaView>
+        <BalanceScreen
+          userProfile={userProfile}
+          onClose={() => setIsStatsVisible(false)}
+        />
       </Modal>
 
       {/* ── CONFIRM DELETE DIALOG ───────────────────────────────────────────── */}
@@ -978,6 +1202,60 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
           onClose={() => setIsPersonalVisible(false)}
         />
       </Modal>
+
+      {/* ── PAGOS & PROVEEDORES SCREEN MODAL (Admin) ────────────────────────── */}
+      <Modal
+        visible={isPagosVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setIsPagosVisible(false)}
+      >
+        <PagosScreen
+          userProfile={userProfile}
+          onClose={() => setIsPagosVisible(false)}
+        />
+      </Modal>
+
+      {/* ── FACTURAS SCREEN MODAL (Admin) ────────────────────────── */}
+      <Modal
+        visible={isFacturasVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setIsFacturasVisible(false)}
+      >
+        <FacturasScreen
+          userProfile={userProfile}
+          onClose={() => setIsFacturasVisible(false)}
+        />
+      </Modal>
+
+      {/* ── MENU CMS SCREEN MODAL (Admin) ────────────────────────── */}
+      <Modal
+        visible={isCmsVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => {
+          setIsCmsVisible(false);
+          cargarDatos();
+        }}
+      >
+        <MenuCmsScreen
+          userProfile={userProfile}
+          onClose={() => {
+            setIsCmsVisible(false);
+            cargarDatos();
+          }}
+        />
+      </Modal>
+
+      {/* ── TICKET / FACTURA VISOR MODAL (Al registrar un pedido) ────────────────── */}
+      <TicketFacturaModal
+        visible={!!ultimoComprobante}
+        onClose={() => setUltimoComprobante(null)}
+        factura={ultimoComprobante?.factura}
+        items={ultimoComprobante?.items}
+        sucursalNombre={getSucursalName(userProfile?.sucursal_id)}
+      />
     </SafeAreaView>
   );
 }
@@ -991,13 +1269,15 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
+    width: '100%',
+    backgroundColor: COLORS.background,
+  },
+  headerInner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    alignSelf: 'center',
   },
   headerTitleBlock: {
     flex: 1,
@@ -1010,8 +1290,9 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text,
+    color: COLORS.secondaryText,
     opacity: 0.85,
+    textTransform: 'uppercase',
   },
   headerUserBlock: {
     flexDirection: 'row',
@@ -1055,9 +1336,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xs + 2,
     paddingHorizontal: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
     height: 40,
@@ -1070,12 +1349,13 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    margin: SPACING.md,
-    backgroundColor: COLORS.card,
+    backgroundColor: COLORS.searchBarBackground,
     borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
     paddingHorizontal: SPACING.md,
+    marginVertical: SPACING.sm,
+    alignSelf: 'center',
   },
   searchInput: {
     flex: 1,
@@ -1091,11 +1371,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   statusBanner: {
-    marginHorizontal: SPACING.md,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
     padding: SPACING.sm,
     borderRadius: BORDER_RADIUS.sm,
     alignItems: 'center',
+    alignSelf: 'center',
   },
   statusBannerSuccess: {
     backgroundColor: 'rgba(16, 185, 129, 0.2)',
@@ -1121,61 +1401,106 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bodyMuted,
   },
   listContent: {
-    padding: SPACING.md,
+    paddingTop: SPACING.xs,
     paddingBottom: 170,
+    alignSelf: 'center',
   },
   rowWrapper: {
-    justifyContent: 'space-between',
-    marginBottom: SPACING.md,
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
   },
+  // ─── Tarjeta de Producto Estilo Spotify (Responsive) ─────────────────────────
   productCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderRadius: 14,
+    padding: 12,
+    position: 'relative',
     overflow: 'hidden',
-    width: '48%',
+    justifyContent: 'flex-start',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  productCardDisabled: {
+    opacity: 0.55,
+  },
+  cardTextContainer: {
+    flex: 1,
+    height: '100%',
+    justifyContent: 'space-between',
+    maxWidth: '62%',
+    zIndex: 2,
+  },
+  productName: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    textShadowColor: 'rgba(0, 0, 0, 0.35)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  productPrice: {
+    color: 'rgba(255, 255, 255, 0.95)',
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    textShadowColor: 'rgba(0, 0, 0, 0.35)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  imageThumbnailWrapper: {
+    position: 'absolute',
+    borderRadius: 8,
+    overflow: 'hidden',
+    transform: [{ rotate: '25deg' }],
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 6,
   },
   productImage: {
     width: '100%',
-    height: 120,
-    backgroundColor: COLORS.cardElevated,
+    height: '100%',
   },
-  productInfo: {
-    width: '100%',
-    padding: SPACING.sm,
-  },
-  productName: {
-    ...TYPOGRAPHY.body,
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: SPACING.xs,
-  },
-  priceContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: SPACING.xs,
-  },
-  productPrice: {
-    ...TYPOGRAPHY.body,
-    fontWeight: '800',
-    color: COLORS.secondary,
-  },
-  addButton: {
-    backgroundColor: COLORS.primary,
-    width: 28,
-    height: 28,
-    borderRadius: BORDER_RADIUS.round,
+  agotadoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 5,
   },
-  addButtonText: {
-    color: COLORS.textLight,
-    fontWeight: '700',
-    fontSize: 16,
+  badgeAgotado: {
+    backgroundColor: COLORS.danger,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  badgeAgotadoText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  badgeCarrito: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    zIndex: 4,
+  },
+  badgeCarritoText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
   },
   emptyContainer: {
     flex: 1,
@@ -1189,9 +1514,9 @@ const styles = StyleSheet.create({
   },
   floatingCartContainer: {
     position: 'absolute',
-    bottom: 95,
-    left: SPACING.md,
-    right: SPACING.md,
+    bottom: 96,
+    alignSelf: 'center',
+    zIndex: 35,
   },
   floatingCartButton: {
     backgroundColor: COLORS.primary,
@@ -1229,96 +1554,142 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
   },
+  // ─── Bottom Tab Bar de Categorías (Centrado en PC y Móvil) ─────────────────
   bottomTabBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.card,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    height: 80,
+    backgroundColor: COLORS.searchBarBackground,
+    borderTopWidth: 2,
+    borderTopColor: COLORS.primary,
+    borderTopEndRadius: 12,
+    borderTopStartRadius: 12,
+    height: 84,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingBottom: Platform.OS === 'ios' ? 15 : 0,
+    zIndex: 40,
+  },
+  bottomTabFlatList: {
+    width: '100%',
+    flex: 1,
   },
   bottomTabList: {
     alignItems: 'center',
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+  },
+  bottomTabListCentered: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   bottomTabButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     marginHorizontal: 5,
-    borderRadius: BORDER_RADIUS.md,
-    minWidth: 85,
+    borderRadius: 14,
+    backgroundColor: COLORS.searchBarBackground,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    minWidth: 84,
     height: 60,
   },
   bottomTabButtonSelected: {
-    backgroundColor: 'rgba(230, 95, 43, 0.15)',
-    borderWidth: 1,
+    backgroundColor: 'rgba(92, 149, 248, 0.16)',
     borderColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
   },
   bottomTabIcon: {
-    width: 30,
-    height: 30,
+    width: 26,
+    height: 26,
     marginBottom: 4,
+    tintColor: COLORS.textMuted,
+  },
+  bottomTabIconSelected: {
+    tintColor: COLORS.primary,
   },
   bottomTabText: {
     ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
+    fontSize: 12,
     fontWeight: '600',
+    textAlign: 'center',
   },
   bottomTabTextSelected: {
     color: COLORS.primary,
     fontWeight: '800',
   },
-  // Cart Modal
+  // Cart Modal (Centrado en pantalla y colores en coherencia con CajeroScreen)
   modalOverlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay,
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
   },
   modalContainer: {
-    backgroundColor: COLORS.card,
-    borderTopLeftRadius: BORDER_RADIUS.xl,
-    borderTopRightRadius: BORDER_RADIUS.xl,
-    maxHeight: '80%',
-    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+    backgroundColor: COLORS.searchBarBackground,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(92, 139, 248, 0.25)',
+    maxHeight: '88%',
+    width: '100%',
+    maxWidth: 580,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 25,
+    elevation: 20,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SPACING.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'rgba(92, 139, 248, 0.15)',
+    backgroundColor: COLORS.searchBarBackground,
   },
   modalTitle: {
     ...TYPOGRAPHY.h2,
+    color: COLORS.primary,
+    fontWeight: '800',
+    fontSize: 20,
   },
   closeModalButton: {
-    padding: SPACING.xs,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   closeModalButtonText: {
-    color: COLORS.textMuted,
-    fontSize: 20,
-    fontWeight: '600',
+    color: COLORS.secondaryText,
+    fontSize: 16,
+    fontWeight: '700',
   },
   modalListContent: {
     padding: SPACING.md,
   },
   cartItemCard: {
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8FAFC',
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: 1.5,
+    borderColor: 'rgba(92, 139, 248, 0.18)',
   },
   cartItemInfo: {
     flexDirection: 'row',
@@ -1326,11 +1697,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cartItemImage: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: BORDER_RADIUS.sm,
     marginRight: SPACING.sm,
-    backgroundColor: COLORS.cardElevated,
+    backgroundColor: 'rgba(0, 0, 0, 0.06)',
   },
   cartItemNameContainer: {
     flex: 1,
@@ -1339,245 +1710,353 @@ const styles = StyleSheet.create({
   cartItemName: {
     ...TYPOGRAPHY.body,
     fontWeight: '700',
+    color: '#0F172A',
+    fontSize: 15,
   },
   cartItemPrice: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.secondary,
+    color: COLORS.primary,
+    fontWeight: '700',
     marginTop: 2,
+    fontSize: 13,
   },
   cartItemActions: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   qtyButton: {
-    backgroundColor: COLORS.cardElevated,
-    width: 32,
-    height: 32,
-    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: COLORS.searchBarBackground,
+    borderWidth: 1.5,
+    borderColor: 'rgba(92, 139, 248, 0.35)',
+    width: 30,
+    height: 30,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   qtyButtonText: {
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '600',
+    color: COLORS.primary,
+    fontSize: 16,
+    fontWeight: '800',
   },
   qtyText: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '700',
-    marginHorizontal: SPACING.md,
+    color: '#0F172A',
+    fontSize: 15,
+    fontWeight: '800',
+    marginHorizontal: SPACING.sm,
     minWidth: 16,
     textAlign: 'center',
   },
   removeCartItemButton: {
-    marginLeft: SPACING.md,
-    padding: SPACING.xs,
+    marginLeft: SPACING.sm,
+    padding: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 8,
   },
   removeCartItemButtonText: {
     color: COLORS.danger,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
   },
   modalFooter: {
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    paddingVertical: SPACING.md,
+    borderTopWidth: 1.5,
+    borderTopColor: 'rgba(92, 139, 248, 0.15)',
+    backgroundColor: COLORS.searchBarBackground,
   },
   modalTotalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   modalTotalLabel: {
     ...TYPOGRAPHY.body,
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.textMuted,
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.secondaryText,
   },
   modalTotalValue: {
     ...TYPOGRAPHY.h2,
-    color: COLORS.secondary,
-    fontSize: 24,
+    color: COLORS.primary,
+    fontSize: 22,
+    fontWeight: '900',
   },
   checkoutButton: {
-    backgroundColor: COLORS.success,
-    borderRadius: BORDER_RADIUS.lg,
-    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: SPACING.sm + 2,
     alignItems: 'center',
     justifyContent: 'center',
-    height: 54,
+    height: 48,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   checkoutButtonDisabled: {
     opacity: 0.6,
   },
   checkoutButtonText: {
     ...TYPOGRAPHY.button,
-    fontSize: 18,
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   modalFormContainer: {
-    marginTop: SPACING.lg,
+    marginTop: SPACING.md,
     paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopWidth: 1.5,
+    borderTopColor: 'rgba(92, 139, 248, 0.15)',
   },
   formSectionTitle: {
     ...TYPOGRAPHY.h3,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
     color: COLORS.primary,
+    fontWeight: '800',
+    fontSize: 16,
   },
   formRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   formHalfInputWrapper: {
     width: '48%',
   },
   formInputLabel: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.text,
-    fontWeight: '600',
-    marginBottom: 6,
+    color: COLORS.secondaryText,
+    fontWeight: '700',
+    fontSize: 12,
+    marginBottom: 5,
   },
   formInput: {
-    height: 44,
-    backgroundColor: COLORS.background,
-    borderColor: COLORS.border,
-    borderWidth: 1,
+    height: 42,
+    backgroundColor: '#F8FAFC',
+    borderColor: 'rgba(92, 139, 248, 0.3)',
+    borderWidth: 1.5,
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.md,
-    color: COLORS.text,
+    color: '#0F172A',
     ...TYPOGRAPHY.body,
+    fontSize: 14,
   },
   notesInput: {
-    height: 60,
-    paddingTop: SPACING.sm,
+    height: 56,
+    paddingTop: SPACING.xs + 2,
     textAlignVertical: 'top',
   },
   paymentSelector: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   paymentOption: {
     flex: 1,
-    height: 40,
-    backgroundColor: COLORS.background,
-    borderColor: COLORS.border,
-    borderWidth: 1,
+    height: 38,
+    backgroundColor: '#F8FAFC',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    borderWidth: 1.5,
     borderRadius: BORDER_RADIUS.sm,
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 2,
   },
   paymentOptionSelected: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: COLORS.success,
+    backgroundColor: 'rgba(92, 139, 248, 0.15)',
+    borderColor: COLORS.primary,
   },
   paymentOptionText: {
     ...TYPOGRAPHY.caption,
     fontSize: 11,
     fontWeight: '600',
-    color: COLORS.textMuted,
+    color: COLORS.secondaryText,
   },
   paymentOptionTextSelected: {
-    color: COLORS.success,
+    color: COLORS.primary,
     fontWeight: '800',
   },
-  // Drawer Modal
+  condicionBadge: {
+    flex: 1,
+    height: 38,
+    backgroundColor: '#F8FAFC',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    borderWidth: 1.5,
+    borderRadius: BORDER_RADIUS.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  condicionBadgeActive: {
+    backgroundColor: 'rgba(92, 139, 248, 0.15)',
+    borderColor: COLORS.primary,
+  },
+  condicionBadgeText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.secondaryText,
+  },
+  condicionBadgeTextActive: {
+    color: COLORS.primary,
+    fontWeight: '800',
+  },
+  // ─── Dual-Column Lateral Drawer (Anclado a la derecha, estilo de la imagen) ──
   drawerOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    backgroundColor: 'transparent',
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    alignItems: 'stretch',
   },
-  drawerContainer: {
-    width: '75%',
-    maxWidth: 320,
+  dualDrawerContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    width: 380,
+    maxWidth: '92%',
     height: '100%',
-    backgroundColor: COLORS.card,
-    padding: SPACING.lg,
-    justifyContent: 'space-between',
+    borderTopLeftRadius: 24,
+    borderBottomLeftRadius: 24,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+    overflow: 'hidden',
     borderLeftWidth: 1,
-    borderLeftColor: COLORS.border,
+    borderLeftColor: 'rgba(92, 139, 248, 0.2)',
+    // Sombra hacia la izquierda
+    shadowColor: '#000',
+    shadowOffset: { width: -4, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 20,
   },
-  drawerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
-  drawerTitle: {
-    ...TYPOGRAPHY.h2,
-    color: COLORS.primary,
-  },
-  drawerCloseButton: {
-    padding: SPACING.xs,
-  },
-  drawerCloseText: {
-    color: COLORS.textMuted,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  drawerProfileSection: {
-    alignItems: 'center',
-    marginVertical: SPACING.md,
-  },
-  drawerProfileIconImage: {
-    width: 64,
-    height: 64,
-    marginBottom: SPACING.xs,
-  },
-  drawerProfileName: {
-    ...TYPOGRAPHY.body,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  drawerProfileRole: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.secondary,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  drawerDivider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginVertical: SPACING.sm,
-  },
-  drawerMenuOptions: {
+  dualDrawerInner: {
     flex: 1,
-    marginTop: SPACING.md,
-  },
-  drawerOption: {
     flexDirection: 'row',
+    height: '100%',
+  },
+  // Columna 1: Rail Izquierdo
+  railColumn: {
+    width: 96,
+    backgroundColor: '#F8FAFC',
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(92, 139, 248, 0.15)',
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  railScrollContent: {
     alignItems: 'center',
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    paddingVertical: SPACING.xs,
   },
-  drawerOptionLogout: {
-    borderBottomWidth: 0,
-    marginTop: SPACING.xl,
+  railTabItem: {
+    width: 80,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    marginVertical: 4,
+    backgroundColor: 'transparent',
   },
-  drawerOptionIconImage: {
-    width: 26,
-    height: 26,
-    marginRight: SPACING.md,
+  railTabItemSelected: {
+    backgroundColor: 'rgba(92, 139, 248, 0.15)',
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
   },
-  drawerOptionText: {
-    ...TYPOGRAPHY.body,
+  railTabIcon: {
+    width: 24,
+    height: 24,
+    marginBottom: 5,
+  },
+  railTabLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(0, 0, 0, 0.65)',
+    textAlign: 'center',
+  },
+  railTabLabelSelected: {
+    color: COLORS.primary,
+    fontWeight: '800',
+  },
+  // Columna 2: Submenú Derecho
+  submenuColumn: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 18,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    position: 'relative',
+  },
+  submenuCloseBtn: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 44 : 16,
+    right: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(92, 139, 248, 0.15)',
+  },
+  submenuCloseText: {
+    color: '#475569',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  submenuScrollContent: {
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  submenuMainPill: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  submenuMainPillText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  submenuMainPillSub: {
+    color: 'rgba(255, 255, 255, 0.88)',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+    letterSpacing: 0.5,
+  },
+  submenuLinksList: {
+    gap: 8,
+  },
+  submenuLinkItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: 'rgba(92, 139, 248, 0.1)',
+  },
+  submenuLinkItemDanger: {
+    backgroundColor: 'rgba(239, 68, 68, 0.06)',
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  submenuLinkText: {
+    color: '#0F172A',
+    fontSize: 13.5,
     fontWeight: '600',
   },
-  drawerFooter: {
-    alignItems: 'center',
-    paddingTop: SPACING.md,
-  },
-  drawerVersionText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
+  submenuLinkDanger: {
+    color: COLORS.danger,
+    fontWeight: '700',
   },
   // Stats Modal
   statsScreenContainer: {
@@ -1590,8 +2069,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.card,
+    borderBottomColor: 'rgba(92, 139, 248, 0.15)',
+    backgroundColor: '#FFFFFF',
   },
   statsHeaderTitle: {
     ...TYPOGRAPHY.h2,
@@ -1600,11 +2079,13 @@ const styles = StyleSheet.create({
   statsCloseButton: {
     paddingVertical: SPACING.xs + 2,
     paddingHorizontal: SPACING.md,
-    backgroundColor: COLORS.cardElevated,
+    backgroundColor: '#F1F5F9',
     borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(92, 139, 248, 0.15)',
   },
   statsCloseButtonText: {
-    color: COLORS.text,
+    color: '#475569',
     fontWeight: '700',
   },
   statsLoader: {
@@ -1615,13 +2096,14 @@ const styles = StyleSheet.create({
   statsLoaderText: {
     ...TYPOGRAPHY.bodyMuted,
     marginTop: SPACING.md,
+    color: '#64748B',
   },
   statsContentContainer: {
     flex: 1,
     padding: SPACING.md,
   },
   statsDateRangeCard: {
-    backgroundColor: 'rgba(230, 95, 43, 0.1)',
+    backgroundColor: 'rgba(92, 139, 248, 0.12)',
     borderColor: COLORS.primary,
     borderWidth: 1,
     borderRadius: BORDER_RADIUS.md,
@@ -1634,7 +2116,7 @@ const styles = StyleSheet.create({
   statsDateRangeLabel: {
     ...TYPOGRAPHY.body,
     fontWeight: '600',
-    color: COLORS.textMuted,
+    color: '#64748B',
   },
   statsDateRangeValue: {
     ...TYPOGRAPHY.body,
@@ -1642,24 +2124,24 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   kpiCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: '#FFFFFF',
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(92, 139, 248, 0.15)',
     alignItems: 'center',
   },
   kpiLabel: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
+    color: '#64748B',
     letterSpacing: 1.5,
     fontWeight: '800',
   },
   kpiValue: {
     fontSize: 32,
     fontWeight: '900',
-    color: COLORS.secondary,
+    color: '#0F172A',
     marginVertical: SPACING.xs,
   },
   kpiSub: {
@@ -1668,27 +2150,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   statsSectionCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: '#FFFFFF',
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(92, 139, 248, 0.15)',
   },
   statsSectionTitle: {
     ...TYPOGRAPHY.h3,
     marginBottom: SPACING.sm,
-    color: COLORS.text,
+    color: '#0F172A',
   },
   statsSectionSubTitle: {
     ...TYPOGRAPHY.caption,
     marginBottom: SPACING.md,
-    color: COLORS.textMuted,
+    color: '#64748B',
   },
   noDataText: {
     ...TYPOGRAPHY.bodyMuted,
     textAlign: 'center',
     paddingVertical: SPACING.md,
+    color: '#64748B',
   },
   paymentProgressContainer: {
     marginTop: SPACING.xs,
@@ -1704,15 +2187,16 @@ const styles = StyleSheet.create({
   paymentProgressLabel: {
     ...TYPOGRAPHY.body,
     fontWeight: '600',
+    color: '#0F172A',
   },
   paymentProgressValue: {
     ...TYPOGRAPHY.body,
     fontWeight: '700',
-    color: COLORS.secondary,
+    color: COLORS.primary,
   },
   progressBarBg: {
     height: 10,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F1F5F9',
     borderRadius: BORDER_RADIUS.round,
     overflow: 'hidden',
   },
@@ -1725,12 +2209,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: 'rgba(92, 139, 248, 0.08)',
   },
   topProductIndex: {
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.secondary,
+    color: COLORS.primary,
     marginRight: SPACING.md,
     width: 24,
   },
@@ -1738,20 +2222,21 @@ const styles = StyleSheet.create({
     flex: 1,
     ...TYPOGRAPHY.body,
     fontWeight: '700',
+    color: '#0F172A',
   },
   topProductQty: {
     ...TYPOGRAPHY.body,
     fontWeight: '800',
-    color: COLORS.textMuted,
+    color: '#64748B',
   },
   transactionCard: {
     flexDirection: 'row',
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFFFFF',
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(92, 139, 248, 0.15)',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
@@ -1762,16 +2247,16 @@ const styles = StyleSheet.create({
   transactionId: {
     ...TYPOGRAPHY.body,
     fontWeight: '700',
-    color: COLORS.text,
+    color: '#0F172A',
   },
   transactionDate: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
+    color: '#64748B',
     marginVertical: 2,
   },
   transactionDetails: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.text,
+    color: '#475569',
   },
   transactionPayType: {
     ...TYPOGRAPHY.caption,
@@ -1806,7 +2291,7 @@ const styles = StyleSheet.create({
   // Confirm Delete Dialog
   confirmOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
@@ -1814,12 +2299,17 @@ const styles = StyleSheet.create({
   confirmBox: {
     width: '100%',
     maxWidth: 340,
-    backgroundColor: COLORS.card,
+    backgroundColor: '#FFFFFF',
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(92, 139, 248, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
   },
   confirmEmoji: {
     fontSize: 48,
@@ -1829,12 +2319,14 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.h2,
     textAlign: 'center',
     marginBottom: SPACING.sm,
+    color: '#0F172A',
   },
   confirmText: {
     ...TYPOGRAPHY.bodyMuted,
     textAlign: 'center',
     marginBottom: SPACING.lg,
     lineHeight: 20,
+    color: '#64748B',
   },
   confirmButtons: {
     flexDirection: 'row',
@@ -1850,10 +2342,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   confirmBtnCancel: {
-    backgroundColor: COLORS.cardElevated,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   confirmBtnCancelText: {
-    color: COLORS.text,
+    color: '#475569',
     fontWeight: '700',
   },
   confirmBtnDelete: {

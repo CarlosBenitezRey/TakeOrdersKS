@@ -88,6 +88,7 @@ class EmpleadoService {
       sueldo_base:   sueldoBase ? parseInt(String(sueldoBase).replace(/\D/g, ''), 10) : 0,
       telefono:      telefono?.trim() || null,
       fecha_ingreso: fechaIngreso || new Date().toISOString().split('T')[0],
+      activo:        true,
     };
   }
 }
