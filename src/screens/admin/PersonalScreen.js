@@ -24,6 +24,7 @@ import {
   TYPOGRAPHY,
 } from '../../theme/theme';
 import { PRODUCT_CONFIG } from '../../config/productConfig';
+import PremiumLoader from '../../components/PremiumLoader';
 
 // ─── Constantes de UI ─────────────────────────────────────────────────────────
 
@@ -269,10 +270,10 @@ export default function PersonalScreen({ userProfile, onClose }) {
 
       {/* LISTA DE EMPLEADOS */}
       {loading ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={POS_COLORS.primary} />
-          <Text style={styles.loaderText}>Cargando personal...</Text>
-        </View>
+        <PremiumLoader
+          message="Cargando personal"
+          detail="Sincronizando empleados y sucursales"
+        />
       ) : empleados.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyEmoji}>👤</Text>
@@ -595,17 +596,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 
-  // Loader / Empty
-  loaderContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loaderText: {
-    marginTop: SPACING.md,
-    color: POS_COLORS.muted,
-    fontSize: 14,
-  },
+  // Empty
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',

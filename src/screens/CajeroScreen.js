@@ -29,6 +29,7 @@ import PagosScreen from './admin/PagosScreen';
 import facturaService from '../services/FacturaService';
 import FacturasScreen from './admin/FacturasScreen';
 import TicketFacturaModal from '../components/TicketFacturaModal';
+import ProductGridSkeleton from '../components/ProductGridSkeleton';
 import BalanceScreen from './admin/BalanceScreen';
 import MenuCmsScreen from './admin/MenuCmsScreen';
 import {
@@ -1037,8 +1038,11 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
           <Text style={styles.catalogTitle}>{selectedCategoryName}</Text>
         </View>
         <Text style={styles.catalogCount}>
-          {productosFiltrados.length}{' '}
-          {productosFiltrados.length === 1 ? 'producto' : 'productos'}
+          {loading
+            ? 'Cargando…'
+            : `${productosFiltrados.length} ${
+                productosFiltrados.length === 1 ? 'producto' : 'productos'
+              }`}
         </Text>
       </View>
 
@@ -1059,10 +1063,14 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
 
       {/* PRODUCTS LIST */}
       {loading ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={POS_COLORS.primary} />
-          <Text style={styles.loaderText}>Conectando con Supabase...</Text>
-        </View>
+        <ProductGridSkeleton
+          containerWidth={containerWidth}
+          cardWidth={cardWidth}
+          cardHeight={cardHeight}
+          imageSize={cardImageSize}
+          columns={numColumns}
+          gap={cardGap}
+        />
       ) : (
         <FlatList
           key={`grid-cols-${numColumns}`}
@@ -1902,15 +1910,6 @@ const styles = StyleSheet.create({
   statusBannerText: {
     ...TYPOGRAPHY.body,
     fontWeight: '600',
-  },
-  loaderContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loaderText: {
-    marginTop: SPACING.md,
-    ...TYPOGRAPHY.bodyMuted,
   },
   listContent: {
     paddingTop: 0,

@@ -5,7 +5,6 @@ import {
   View,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
   SafeAreaView,
   Platform,
   StatusBar,
@@ -15,6 +14,7 @@ import {
 import orderService from '../services/OrderService';
 import authService from '../services/AuthService';
 import productService from '../services/ProductService';
+import PremiumLoader from '../components/PremiumLoader';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../theme/theme';
 
 export default function CocinaScreen({ userProfile, onSwitchView }) {
@@ -268,10 +268,10 @@ export default function CocinaScreen({ userProfile, onSwitchView }) {
       </View>
 
       {loading && pedidos.length === 0 ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loaderText}>Cargando pedidos...</Text>
-        </View>
+        <PremiumLoader
+          message="Preparando cocina"
+          detail="Sincronizando pedidos y comandas"
+        />
       ) : (
         <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
           {/* SELECTOR DE SUCURSAL (Solo para Administrador General) */}
@@ -446,16 +446,6 @@ const styles = StyleSheet.create({
     color: COLORS.danger,
     fontWeight: '700',
     fontSize: 13,
-  },
-  loaderContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loaderText: {
-    marginTop: SPACING.md,
-    ...TYPOGRAPHY.bodyMuted,
-    color: '#64748B',
   },
   content: {
     flex: 1,

@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import authService from './src/services/AuthService';
 import LoginScreen from './src/screens/LoginScreen';
 import CajeroScreen from './src/screens/CajeroScreen';
 import CocinaScreen from './src/screens/CocinaScreen';
-import { COLORS } from './src/theme/theme';
+import PremiumLoader from './src/components/PremiumLoader';
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -55,9 +54,11 @@ export default function App() {
   // Splash loader mientras se recupera el estado de sesión
   if (checkingAuth) {
     return (
-      <View style={styles.splashContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
+      <PremiumLoader
+        fullScreen
+        message="Preparando tu espacio de trabajo"
+        detail="Validando sesión y permisos"
+      />
     );
   }
 
@@ -78,12 +79,3 @@ export default function App() {
     />
   );
 }
-
-const styles = StyleSheet.create({
-  splashContainer: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});

@@ -25,6 +25,7 @@ import {
 } from '../../theme/theme';
 import { getProductImage, FOOD_PRESET_IMAGES, getCategoryIcon } from '../../theme/assets';
 import { PRODUCT_CONFIG } from '../../config/productConfig';
+import PremiumLoader from '../../components/PremiumLoader';
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');
 
@@ -423,10 +424,10 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
           </View>
 
           {loading ? (
-            <View style={styles.centerContainer}>
-              <ActivityIndicator size="large" color={POS_COLORS.primary} />
-              <Text style={styles.loadingText}>Cargando catálogo...</Text>
-            </View>
+            <PremiumLoader
+              message="Cargando catálogo"
+              detail="Sincronizando platos, precios y categorías"
+            />
           ) : (
             <FlatList
               data={productosFiltrados}
@@ -1870,17 +1871,6 @@ const styles = StyleSheet.create({
   },
 
   // Helpers
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.xl,
-  },
-  loadingText: {
-    color: POS_COLORS.muted,
-    marginTop: 10,
-    fontSize: 13,
-  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
