@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,10 +9,20 @@ import {
   SafeAreaView,
   Platform,
   StatusBar,
+  Modal,
+  Image,
+  Animated,
+  Easing,
 } from 'react-native';
 import balanceService from '../../services/BalanceService';
 import productService from '../../services/ProductService';
+import authService from '../../services/AuthService';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
+import { APP_ICONS } from '../../theme/assets';
+import PersonalScreen from './PersonalScreen';
+import PagosScreen from './PagosScreen';
+import FacturasScreen from './FacturasScreen';
+import MenuCmsScreen from './MenuCmsScreen';
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');
 
@@ -33,6 +43,57 @@ export default function BalanceScreen({ userProfile, onClose }) {
   );
   const [loading, setLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState({ text: '', type: '' });
+
+  // Estados del Menú Lateral Dual (para el rol Admin) y Modales Administrativos
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+  const [drawerActiveTab, setDrawerActiveTab] = useState('finanzas');
+  const [isPersonalVisible, setIsPersonalVisible] = useState(false);
+  const [isPagosVisible, setIsPagosVisible] = useState(false);
+  const [isFacturasVisible, setIsFacturasVisible] = useState(false);
+  const [isCmsVisible, setIsCmsVisible] = useState(false);
+
+  const drawerSlideAnim = useRef(new Animated.Value(500)).current;
+  const drawerBackdropAnim = useRef(new Animated.Value(0)).current;
+
+  const openDrawer = () => {
+    drawerSlideAnim.setValue(500);
+    drawerBackdropAnim.setValue(0);
+    setIsDrawerVisible(true);
+    Animated.parallel([
+      Animated.timing(drawerSlideAnim, {
+        toValue: 0,
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(drawerBackdropAnim, {
+        toValue: 1,
+        duration: 240,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const closeDrawer = (callback) => {
+    Animated.parallel([
+      Animated.timing(drawerSlideAnim, {
+        toValue: 500,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(drawerBackdropAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setIsDrawerVisible(false);
+      if (typeof callback === 'function') {
+        callback();
+      }
+    });
+  };
 
   const esAdminGlobal = !userProfile?.sucursal_id;
 
@@ -94,6 +155,173 @@ export default function BalanceScreen({ userProfile, onClose }) {
 
   const esGanancia = kpis.utilidadNeta >= 0;
 
+  // Pestañas del Menú Lateral Dual para rol Admin (todas las opciones excepto Cocina y Cajero)
+  const drawerTabs = [
+    {
+      id: 'finanzas',
+      label: 'Finanzas',
+      icon: APP_ICONS.finanzas,
+      submenu: {
+        mainTitle: 'Balance y Finanzas',
+        mainAction: () => {
+          setActiveTab('estado_resultados');
+          closeDrawer();
+        },
+        items: [
+          {
+            label: 'Métricas de Ventas',
+            action: () => {
+              setActiveTab('estado_resultados');
+              closeDrawer();
+            },
+          },
+          {
+            label: 'Arqueo de Caja',
+            action: () => {
+              setActiveTab('arqueo_caja');
+              closeDrawer();
+            },
+          },
+          {
+            label: 'Desglose de Cobros',
+            action: () => {
+              setActiveTab('ventas_productos');
+              closeDrawer();
+            },
+          },
+        ],
+      },
+    },
+    {
+      id: 'personal',
+      label: 'Personal',
+      icon: APP_ICONS.personal,
+      submenu: {
+        mainTitle: 'Gestión de Personal',
+        mainAction: () => {
+          closeDrawer(() => setIsPersonalVisible(true));
+        },
+        items: [
+          {
+            label: 'Plantel de Empleados',
+            action: () => {
+              closeDrawer(() => setIsPersonalVisible(true));
+            },
+          },
+          {
+            label: 'Registrar Empleado',
+            action: () => {
+              closeDrawer(() => setIsPersonalVisible(true));
+            },
+          },
+          {
+            label: 'Control de Salarios',
+            action: () => {
+              closeDrawer(() => setIsPersonalVisible(true));
+            },
+          },
+        ],
+      },
+    },
+    {
+      id: 'compras',
+      label: 'Compras',
+      icon: APP_ICONS.compras,
+      submenu: {
+        mainTitle: 'Pagos y Proveedores',
+        mainAction: () => {
+          closeDrawer(() => setIsPagosVisible(true));
+        },
+        items: [
+          {
+            label: 'Facturas y Comprobantes',
+            action: () => {
+              closeDrawer(() => setIsFacturasVisible(true));
+            },
+          },
+          {
+            label: 'Directorio de Proveedores',
+            action: () => {
+              closeDrawer(() => setIsPagosVisible(true));
+            },
+          },
+          {
+            label: 'Registro de Gastos',
+            action: () => {
+              closeDrawer(() => setIsPagosVisible(true));
+            },
+          },
+        ],
+      },
+    },
+    {
+      id: 'catalogo',
+      label: 'Catálogo',
+      icon: APP_ICONS.catalogo,
+      submenu: {
+        mainTitle: 'CMS Menú y Precios',
+        mainAction: () => {
+          closeDrawer(() => setIsCmsVisible(true));
+        },
+        items: [
+          {
+            label: 'Modificar Platos y Precios',
+            action: () => {
+              closeDrawer(() => setIsCmsVisible(true));
+            },
+          },
+          {
+            label: 'Administrar Categorías',
+            action: () => {
+              closeDrawer(() => setIsCmsVisible(true));
+            },
+          },
+          {
+            label: 'Control de Disponibilidad',
+            action: () => {
+              closeDrawer(() => setIsCmsVisible(true));
+            },
+          },
+        ],
+      },
+    },
+    {
+      id: 'cuenta',
+      label: 'Cuenta',
+      icon: APP_ICONS.cuenta,
+      submenu: {
+        mainTitle: userProfile?.nombre || 'Mi Perfil',
+        mainSubtitle: userProfile?.rol?.toUpperCase() || 'ADMIN',
+        mainAction: null,
+        items: [
+          {
+            label: `Sucursal: ${userProfile?.sucursales?.nombre || 'Global / Central'}`,
+            action: null,
+          },
+          ...(userProfile?.email
+            ? [
+                {
+                  label: userProfile.email,
+                  action: null,
+                },
+              ]
+            : []),
+          {
+            label: 'Cerrar Sesión',
+            danger: true,
+            action: () => {
+              closeDrawer(() => authService.logout());
+            },
+          },
+        ],
+      },
+    },
+  ];
+
+  const currentDrawerTab =
+    drawerTabs.find((t) => t.id === drawerActiveTab) || drawerTabs[0];
+  const currentSubmenu = currentDrawerTab.submenu;
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
@@ -103,12 +331,20 @@ export default function BalanceScreen({ userProfile, onClose }) {
         <View>
           <Text style={styles.headerTitle}>Balance & Finanzas</Text>
           <Text style={styles.headerSubtitle}>
-            Control integral de ingresos, egresos y utilidades
+            {onClose
+              ? 'Control integral de ingresos, egresos y utilidades'
+              : `${userProfile?.nombre || 'Admin'} (${userProfile?.rol || 'admin'})`}
           </Text>
         </View>
-        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-          <Text style={styles.closeButtonText}>✕ Cerrar</Text>
-        </TouchableOpacity>
+        {onClose ? (
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Text style={styles.closeButtonText}>✕ Cerrar</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.menuButton} onPress={openDrawer}>
+            <Text style={styles.menuButtonText}>☰ Menú</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* ─── Selector de Período ─────────────────────────────────────────────── */}
@@ -662,6 +898,208 @@ export default function BalanceScreen({ userProfile, onClose }) {
           )}
         </ScrollView>
       )}
+
+      {/* ─── Menú Lateral de 2 Columnas (para rol Admin) ─────────────────────── */}
+      <Modal
+        visible={isDrawerVisible}
+        animationType="none"
+        transparent={true}
+        onRequestClose={() => closeDrawer()}
+      >
+        <View style={styles.drawerOverlay}>
+          {/* Fondo oscuro animado */}
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor: 'rgba(15, 23, 42, 0.55)',
+                opacity: drawerBackdropAnim,
+              },
+            ]}
+          />
+
+          {/* Área de clic fuera del cajón para cerrarlo */}
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={1}
+            onPress={() => closeDrawer()}
+          />
+
+          <Animated.View
+            style={[
+              styles.dualDrawerContainer,
+              { transform: [{ translateX: drawerSlideAnim }] },
+            ]}
+          >
+            <View style={styles.dualDrawerInner}>
+              {/* ── COLUMNA 1: Rail Izquierdo de Categorías ── */}
+              <View style={styles.railColumn}>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.railScrollContent}
+                >
+                  {drawerTabs.map((tab) => {
+                    const isSelected = drawerActiveTab === tab.id;
+                    return (
+                      <TouchableOpacity
+                        key={tab.id}
+                        style={[
+                          styles.railTabItem,
+                          isSelected && styles.railTabItemSelected,
+                        ]}
+                        onPress={() => setDrawerActiveTab(tab.id)}
+                        activeOpacity={0.75}
+                      >
+                        <Image
+                          source={tab.icon}
+                          style={styles.railTabIcon}
+                          resizeMode="contain"
+                        />
+                        <Text
+                          style={[
+                            styles.railTabLabel,
+                            isSelected && styles.railTabLabelSelected,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {tab.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
+              {/* ── COLUMNA 2: Submenú Derecho Contextual ── */}
+              <View style={styles.submenuColumn}>
+                <TouchableOpacity
+                  style={styles.submenuCloseBtn}
+                  onPress={() => closeDrawer()}
+                >
+                  <Text style={styles.submenuCloseText}>✕</Text>
+                </TouchableOpacity>
+
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.submenuScrollContent}
+                >
+                  {/* Botón / Píldora Destacada Principal */}
+                  <TouchableOpacity
+                    style={styles.submenuMainPill}
+                    activeOpacity={currentSubmenu.mainAction ? 0.8 : 1}
+                    onPress={() => {
+                      if (currentSubmenu.mainAction) {
+                        currentSubmenu.mainAction();
+                      }
+                    }}
+                  >
+                    <Text style={styles.submenuMainPillText}>
+                      {currentSubmenu.mainTitle}
+                    </Text>
+                    {currentSubmenu.mainSubtitle ? (
+                      <Text style={styles.submenuMainPillSub}>
+                        {currentSubmenu.mainSubtitle}
+                      </Text>
+                    ) : null}
+                  </TouchableOpacity>
+
+                  {/* Lista de Sub-ítems */}
+                  <View style={styles.submenuLinksList}>
+                    {currentSubmenu.items.map((item, idx) => (
+                      <TouchableOpacity
+                        key={idx}
+                        style={[
+                          styles.submenuLinkItem,
+                          item.danger && styles.submenuLinkItemDanger,
+                        ]}
+                        activeOpacity={item.action ? 0.65 : 1}
+                        onPress={() => {
+                          if (item.action) item.action();
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.submenuLinkText,
+                            item.danger && styles.submenuLinkDanger,
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      {/* Modal de Gestión de Personal y Salarios */}
+      <Modal
+        visible={isPersonalVisible}
+        animationType="slide"
+        onRequestClose={() => {
+          setIsPersonalVisible(false);
+          cargarDatos();
+        }}
+      >
+        <PersonalScreen
+          userProfile={userProfile}
+          onClose={() => {
+            setIsPersonalVisible(false);
+            cargarDatos();
+          }}
+        />
+      </Modal>
+
+      {/* Modal de Pagos y Proveedores */}
+      <Modal
+        visible={isPagosVisible}
+        animationType="slide"
+        onRequestClose={() => {
+          setIsPagosVisible(false);
+          cargarDatos();
+        }}
+      >
+        <PagosScreen
+          userProfile={userProfile}
+          onClose={() => {
+            setIsPagosVisible(false);
+            cargarDatos();
+          }}
+        />
+      </Modal>
+
+      {/* Modal de Facturas y Comprobantes */}
+      <Modal
+        visible={isFacturasVisible}
+        animationType="slide"
+        onRequestClose={() => {
+          setIsFacturasVisible(false);
+          cargarDatos();
+        }}
+      >
+        <FacturasScreen
+          userProfile={userProfile}
+          onClose={() => {
+            setIsFacturasVisible(false);
+            cargarDatos();
+          }}
+        />
+      </Modal>
+
+      {/* Modal de CMS Menú y Precios */}
+      <Modal
+        visible={isCmsVisible}
+        animationType="slide"
+        onRequestClose={() => setIsCmsVisible(false)}
+      >
+        <MenuCmsScreen
+          userProfile={userProfile}
+          onClose={() => setIsCmsVisible(false)}
+        />
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -710,6 +1148,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#475569',
     fontWeight: '700',
+  },
+  logoutButton: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: COLORS.danger,
+  },
+  logoutButtonText: {
+    color: COLORS.danger,
   },
 
   // Períodos
@@ -1210,5 +1655,171 @@ const styles = StyleSheet.create({
     color: '#64748B',
     textAlign: 'center',
     paddingVertical: SPACING.md,
+  },
+  menuButton: {
+    paddingVertical: SPACING.xs + 2,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 40,
+  },
+  menuButtonText: {
+    color: COLORS.text,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  // ─── Dual-Column Lateral Drawer (Anclado a la derecha) ──
+  drawerOverlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'stretch',
+  },
+  dualDrawerContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    width: 380,
+    maxWidth: '92%',
+    height: '100%',
+    borderTopLeftRadius: 24,
+    borderBottomLeftRadius: 24,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+    overflow: 'hidden',
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(92, 139, 248, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: -4, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  dualDrawerInner: {
+    flex: 1,
+    flexDirection: 'row',
+    height: '100%',
+  },
+  railColumn: {
+    width: 96,
+    backgroundColor: '#F8FAFC',
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(92, 139, 248, 0.15)',
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  railScrollContent: {
+    alignItems: 'center',
+    paddingVertical: SPACING.xs,
+  },
+  railTabItem: {
+    width: 80,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    marginVertical: 4,
+    backgroundColor: 'transparent',
+  },
+  railTabItemSelected: {
+    backgroundColor: 'rgba(92, 139, 248, 0.15)',
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+  },
+  railTabIcon: {
+    width: 24,
+    height: 24,
+    marginBottom: 5,
+  },
+  railTabLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(0, 0, 0, 0.65)',
+    textAlign: 'center',
+  },
+  railTabLabelSelected: {
+    color: COLORS.primary,
+    fontWeight: '800',
+  },
+  submenuColumn: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 18,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    position: 'relative',
+  },
+  submenuCloseBtn: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 44 : 16,
+    right: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(92, 139, 248, 0.15)',
+  },
+  submenuCloseText: {
+    color: '#475569',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  submenuScrollContent: {
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  submenuMainPill: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  submenuMainPillText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  submenuMainPillSub: {
+    color: 'rgba(255, 255, 255, 0.88)',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+    letterSpacing: 0.5,
+  },
+  submenuLinksList: {
+    gap: 8,
+  },
+  submenuLinkItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: 'rgba(92, 139, 248, 0.1)',
+  },
+  submenuLinkItemDanger: {
+    backgroundColor: 'rgba(239, 68, 68, 0.06)',
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  submenuLinkText: {
+    color: '#0F172A',
+    fontSize: 13.5,
+    fontWeight: '600',
+  },
+  submenuLinkDanger: {
+    color: COLORS.danger,
+    fontWeight: '700',
   },
 });

@@ -156,7 +156,7 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
   const [condicionVenta, setCondicionVenta] = useState('contado');
 
   const esAdmin =
-    userProfile?.rol?.toLowerCase()?.trim() === 'admin';
+    userProfile?.rol?.toLowerCase()?.trim() === 'superadmin';
 
   // ─── Carga inicial ────────────────────────────────────────────────────────────
 

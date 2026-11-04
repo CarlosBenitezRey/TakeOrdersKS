@@ -4,6 +4,7 @@ import authService from './src/services/AuthService';
 import LoginScreen from './src/screens/LoginScreen';
 import CajeroScreen from './src/screens/CajeroScreen';
 import CocinaScreen from './src/screens/CocinaScreen';
+import BalanceScreen from './src/screens/admin/BalanceScreen';
 import { COLORS } from './src/theme/theme';
 
 export default function App() {
@@ -66,6 +67,14 @@ export default function App() {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
+  const rolUsuario = userProfile?.rol?.toLowerCase()?.trim();
+
+  // El rol "admin" solo tiene acceso a Finanzas (sin acceso a Cajero ni Cocina)
+  if (rolUsuario === 'admin') {
+    return <BalanceScreen userProfile={userProfile} />;
+  }
+
+  // "superadmin" (y roles operativos) acceden al flujo de Cajero / Cocina
   return currentView === 'cajero' ? (
     <CajeroScreen
       userProfile={userProfile}
