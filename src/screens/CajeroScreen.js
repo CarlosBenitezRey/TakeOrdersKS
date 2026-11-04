@@ -58,12 +58,17 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
   const { width: windowWidth } = useWindowDimensions();
   const isMobile = windowWidth < 600;
   const isTablet = windowWidth >= 600 && windowWidth < 1024;
+  const isTabletDevice = windowWidth >= 600 && windowWidth <= 1180;
 
   // Cantidad de columnas dinámicas para la grilla
   const numColumns = isMobile ? 2 : isTablet ? 3 : 4;
 
   // Ancho simétrico para alinear Header, Search, Grilla y Carrito
   const containerWidth = Math.min(1150, windowWidth - (isMobile ? 20 : 32));
+  const floatingCartWidth = isMobile
+    ? containerWidth
+    : Math.min(isTabletDevice ? 720 : 760, containerWidth - 24);
+  const floatingCartBottom = isMobile ? 16 : isTabletDevice ? 42 : 24;
 
   // Dimensiones proporcionales calculadas para cada tarjeta
   const cardGap = isMobile ? 10 : 14;
@@ -1064,7 +1069,14 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
           data={productosFiltrados}
           keyExtractor={(item) => item.id.toString()}
           numColumns={numColumns}
-          contentContainerStyle={[styles.listContent, { width: containerWidth }]}
+          contentContainerStyle={[
+            styles.listContent,
+            {
+              width: containerWidth,
+              paddingBottom:
+                carrito.length > 0 ? (isTabletDevice ? 142 : 118) : 42,
+            },
+          ]}
           columnWrapperStyle={[styles.rowWrapper, { gap: cardGap, marginBottom: cardGap }]}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
@@ -1087,8 +1099,15 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                 ]}
               >
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.nombre}, Gs. ${formatPrice(item.precio)}`}
+                  accessibilityState={{
+                    disabled: !isDisponible,
+                    selected: cantidadEnCarrito > 0,
+                  }}
                   style={({ pressed }) => [
                     styles.productCard,
+                    cantidadEnCarrito > 0 && styles.productCardSelected,
                     pressed && isDisponible && styles.productCardPressed,
                     !isDisponible && styles.productCardDisabled,
                   ]}
@@ -1155,7 +1174,7 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                             cantidadEnCarrito > 0 && styles.cardAddButtonTextActive,
                           ]}
                         >
-                          {cantidadEnCarrito > 0 ? cantidadEnCarrito : '+'}
+                          {cantidadEnCarrito > 0 ? `✓ ${cantidadEnCarrito}` : '+'}
                         </Text>
                       </View>
                     )}
@@ -1172,6 +1191,26 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                 )}
 
                 </Pressable>
+
+                {cantidadEnCarrito > 0 && isDisponible && (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={`Eliminar ${item.nombre} del pedido`}
+                    activeOpacity={0.72}
+                    hitSlop={4}
+                    style={styles.productDeleteButton}
+                    onPress={() => eliminarProducto(item.id)}
+                  >
+                    <View style={styles.trashIcon}>
+                      <View style={styles.trashIconLid} />
+                      <View style={styles.trashIconHandle} />
+                      <View style={styles.trashIconBody}>
+                        <View style={styles.trashIconLine} />
+                        <View style={styles.trashIconLine} />
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                )}
               </View>
             );
           }}
@@ -1180,7 +1219,15 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
 
       {/* FLOATING CART BUTTON */}
       {carrito.length > 0 && (
-        <View style={[styles.floatingCartContainer, { width: containerWidth }]}>
+        <View
+          style={[
+            styles.floatingCartContainer,
+            {
+              width: floatingCartWidth,
+              bottom: floatingCartBottom,
+            },
+          ]}
+        >
           <TouchableOpacity
             style={styles.floatingCartButton}
             activeOpacity={0.9}
@@ -1896,6 +1943,11 @@ const styles = StyleSheet.create({
     borderColor: '#D9E1DB',
     backgroundColor: POS_COLORS.surfaceStrong,
   },
+  productCardSelected: {
+    borderWidth: 2,
+    borderColor: POS_COLORS.primary,
+    backgroundColor: POS_COLORS.surfaceStrong,
+  },
   productCardPressed: {
     opacity: 0.95,
     transform: [{ scale: 0.985 }],
@@ -1939,6 +1991,8 @@ const styles = StyleSheet.create({
     borderColor: POS_COLORS.primarySoft,
   },
   cardAddButtonActive: {
+    width: 43,
+    paddingHorizontal: 6,
     backgroundColor: POS_COLORS.primary,
     borderColor: POS_COLORS.primary,
   },
@@ -1952,10 +2006,74 @@ const styles = StyleSheet.create({
   },
   cardAddButtonTextActive: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 11,
     lineHeight: 16,
     fontWeight: '800',
     marginTop: 0,
+  },
+  productDeleteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F5',
+    borderWidth: 1,
+    borderColor: '#EFC9CD',
+    shadowColor: '#7F1D1D',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  trashIcon: {
+    width: 14,
+    height: 16,
+    alignItems: 'center',
+  },
+  trashIconLid: {
+    position: 'absolute',
+    top: 3,
+    width: 14,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#B33A45',
+  },
+  trashIconHandle: {
+    position: 'absolute',
+    top: 0,
+    width: 6,
+    height: 4,
+    borderWidth: 1.5,
+    borderBottomWidth: 0,
+    borderColor: '#B33A45',
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
+  },
+  trashIconBody: {
+    position: 'absolute',
+    top: 6,
+    width: 11,
+    height: 10,
+    borderWidth: 1.5,
+    borderTopWidth: 0,
+    borderColor: '#B33A45',
+    borderBottomLeftRadius: 3,
+    borderBottomRightRadius: 3,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 2,
+    paddingTop: 2,
+  },
+  trashIconLine: {
+    width: 1,
+    height: 5,
+    borderRadius: 1,
+    backgroundColor: '#B33A45',
   },
   imageThumbnailWrapper: {
     position: 'absolute',
@@ -2002,11 +2120,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   floatingCartContainer: {
-    position: 'absolute',
-    bottom: 22,
+    position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     alignSelf: 'center',
-    zIndex: 35,
+    ...(Platform.OS === 'web'
+      ? { left: 0, right: 0, marginHorizontal: 'auto' }
+      : {}),
+    zIndex: 100,
     paddingHorizontal: 0,
+    elevation: 30,
   },
   floatingCartButton: {
     backgroundColor: PRODUCT_CONFIG.branding.primaryDark,
