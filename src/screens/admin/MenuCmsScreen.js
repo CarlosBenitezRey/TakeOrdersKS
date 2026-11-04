@@ -16,8 +16,15 @@ import {
   Switch,
 } from 'react-native';
 import productService from '../../services/ProductService';
-import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
+import {
+  COLORS,
+  POS_COLORS,
+  SPACING,
+  BORDER_RADIUS,
+  TYPOGRAPHY,
+} from '../../theme/theme';
 import { getProductImage, FOOD_PRESET_IMAGES, getCategoryIcon } from '../../theme/assets';
+import { PRODUCT_CONFIG } from '../../config/productConfig';
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');
 
@@ -245,7 +252,10 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={PRODUCT_CONFIG.branding.primaryDark}
+      />
 
       {/* ─── Encabezado Principal ────────────────────────────────────────────── */}
       <View style={styles.header}>
@@ -290,7 +300,7 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
       <View style={styles.kpiContainer}>
         <View style={styles.kpiCard}>
           <Text style={styles.kpiLabel}>TOTAL PLATOS</Text>
-          <Text style={[styles.kpiValue, { color: COLORS.text }]}>
+          <Text style={[styles.kpiValue, { color: POS_COLORS.ink }]}>
             {kpis.totalPlatos}
           </Text>
           <Text style={styles.kpiSub}>En la carta</Text>
@@ -298,7 +308,7 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
 
         <View style={styles.kpiCard}>
           <Text style={styles.kpiLabel}>DISPONIBLES</Text>
-          <Text style={[styles.kpiValue, { color: '#10B981' }]}>
+          <Text style={[styles.kpiValue, { color: POS_COLORS.primary }]}>
             {kpis.disponibles}
           </Text>
           <Text style={styles.kpiSub}>
@@ -308,7 +318,7 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
 
         <View style={styles.kpiCard}>
           <Text style={styles.kpiLabel}>CATEGORÍAS</Text>
-          <Text style={[styles.kpiValue, { color: '#63B3ED' }]}>
+          <Text style={[styles.kpiValue, { color: POS_COLORS.primaryDark }]}>
             {kpis.totalCategorias}
           </Text>
           <Text style={styles.kpiSub}>Secciones</Text>
@@ -316,7 +326,7 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
 
         <View style={styles.kpiCard}>
           <Text style={styles.kpiLabel}>PRECIO PROMEDIO</Text>
-          <Text style={[styles.kpiValue, { color: '#F59E0B' }]}>
+          <Text style={[styles.kpiValue, { color: POS_COLORS.primary }]}>
             Gs. {formatPrice(kpis.precioPromedio)}
           </Text>
           <Text style={styles.kpiSub}>Por producto</Text>
@@ -370,7 +380,7 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
             <TextInput
               style={styles.searchInput}
               placeholder="Buscar plato por nombre o ingredientes..."
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={POS_COLORS.muted}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -414,7 +424,7 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
 
           {loading ? (
             <View style={styles.centerContainer}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
+              <ActivityIndicator size="large" color={POS_COLORS.primary} />
               <Text style={styles.loadingText}>Cargando catálogo...</Text>
             </View>
           ) : (
@@ -501,15 +511,6 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
 
                     {/* Botones de Acción */}
                     <View style={styles.platoActionsColumn}>
-                      {/* Cambio rápido de precio 
-                      <TouchableOpacity
-                        style={styles.btnPrecioRapido}
-                        onPress={() => abrirModalPrecioRapido(item)}
-                      >
-                        <Text style={styles.btnPrecioRapidoText}>Gs. Precio</Text>
-                      </TouchableOpacity>
-                        */}
-
                       {/* Editar Completo */}
                       <TouchableOpacity
                         style={styles.btnEditarPlato}
@@ -526,8 +527,13 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
                         <Switch
                           value={isDisponible}
                           onValueChange={() => handleToggleDisponibilidad(item)}
-                          trackColor={{ false: '#334155', true: 'rgba(16, 185, 129, 0.4)' }}
-                          thumbColor={isDisponible ? '#10B981' : '#94A3B8'}
+                          trackColor={{
+                            false: POS_COLORS.line,
+                            true: POS_COLORS.primarySoft,
+                          }}
+                          thumbColor={
+                            isDisponible ? POS_COLORS.primary : POS_COLORS.muted
+                          }
                         />
                       </View>
 
@@ -666,7 +672,7 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
               <TextInput
                 style={styles.input}
                 placeholder="Ej. Smash Cheddar Doble"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={POS_COLORS.muted}
                 value={formPlato.nombre}
                 onChangeText={(text) =>
                   setFormPlato((prev) => ({ ...prev, nombre: text }))
@@ -680,7 +686,7 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
                   <TextInput
                     style={styles.input}
                     placeholder="Ej. 35000"
-                    placeholderTextColor={COLORS.textMuted}
+                    placeholderTextColor={POS_COLORS.muted}
                     keyboardType="numeric"
                     value={formPlato.precio}
                     onChangeText={(text) =>
@@ -747,7 +753,7 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
                 <TextInput
                   style={styles.input}
                   placeholder="https://... o selecciona de abajo"
-                  placeholderTextColor={COLORS.textMuted}
+                  placeholderTextColor={POS_COLORS.muted}
                   value={formPlato.imagen_url}
                   onChangeText={(text) =>
                     setFormPlato((prev) => ({ ...prev, imagen_url: text }))
@@ -807,8 +813,13 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
                   onValueChange={(val) =>
                     setFormPlato((prev) => ({ ...prev, disponible: val }))
                   }
-                  trackColor={{ false: '#334155', true: 'rgba(16, 185, 129, 0.4)' }}
-                  thumbColor={formPlato.disponible ? '#10B981' : '#94A3B8'}
+                  trackColor={{
+                    false: POS_COLORS.line,
+                    true: POS_COLORS.primarySoft,
+                  }}
+                  thumbColor={
+                    formPlato.disponible ? POS_COLORS.primary : POS_COLORS.muted
+                  }
                 />
               </View>
 
@@ -819,7 +830,7 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
               <TextInput
                 style={[styles.input, styles.textArea]}
                 placeholder="Ej. Dos medallones de 90g, doble queso cheddar fundido, cebolla caramelizada y salsa KS..."
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={POS_COLORS.muted}
                 multiline
                 numberOfLines={3}
                 value={formPlato.descripcion}
@@ -965,7 +976,7 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
               <TextInput
                 style={styles.input}
                 placeholder="Ej. Postres, Combos, Tragos..."
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={POS_COLORS.muted}
                 value={nombreCategoria}
                 onChangeText={setNombreCategoria}
                 autoFocus
@@ -1017,7 +1028,7 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
             </Text>
             <Text style={styles.confirmSub}>
               Estás a punto de borrar permanentemente{' '}
-              <Text style={{ color: COLORS.text, fontWeight: '700' }}>
+              <Text style={{ color: POS_COLORS.ink, fontWeight: '700' }}>
                 "{itemAEliminar?.nombre}"
               </Text>
               . Esta acción no se puede deshacer.
@@ -1053,7 +1064,7 @@ export default function MenuCmsScreen({ userProfile, onClose }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: POS_COLORS.canvas,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
@@ -1061,18 +1072,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.secondaryBackground,
+    paddingVertical: 12,
+    backgroundColor: PRODUCT_CONFIG.branding.primaryDark,
+    backgroundImage:
+      'linear-gradient(110deg, #07130D 0%, #183B2A 58%, #244B35 100%)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.10)',
+    shadowColor: '#07130D',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 7,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: COLORS.primary,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: COLORS.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(232, 242, 235, 0.75)',
+    marginTop: 2,
   },
   headerActions: {
     flexDirection: 'row',
@@ -1080,49 +1102,53 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   btnPrimaryAction: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: PRODUCT_CONFIG.branding.primaryBright,
     paddingHorizontal: SPACING.md,
-    paddingVertical: 7,
-    borderRadius: BORDER_RADIUS.sm,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
   },
   btnPrimaryActionText: {
     ...TYPOGRAPHY.button,
     fontSize: 12,
-    color: '#FFF',
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
   closeButton: {
     paddingHorizontal: SPACING.md,
-    paddingVertical: 7,
-    backgroundColor: 'rgba(247, 170, 170, 1)',
-    borderRadius: 20,
+    paddingVertical: 9,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 10,
   },
   closeButtonText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.danger,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 
   // Banner
   statusBanner: {
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: SPACING.md,
     alignItems: 'center',
   },
   statusBannerSuccess: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: POS_COLORS.primarySoft,
     borderBottomWidth: 1,
-    borderBottomColor: '#10B981',
+    borderBottomColor: '#C7DDCE',
   },
   statusBannerError: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    backgroundColor: '#FFF1F2',
     borderBottomWidth: 1,
-    borderBottomColor: '#EF4444',
+    borderBottomColor: '#F2C4C8',
   },
   statusBannerText: {
     ...TYPOGRAPHY.caption,
     fontWeight: '700',
-    color: COLORS.text,
+    color: POS_COLORS.ink,
   },
 
   // KPIs
@@ -1130,31 +1156,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.background,
+    backgroundColor: POS_COLORS.canvas,
     gap: 8,
   },
   kpiCard: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: POS_COLORS.surfaceStrong,
     padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: POS_COLORS.line,
+    shadowColor: '#17221B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 1,
   },
   kpiLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.tOBlack,
-    letterSpacing: 0.5,
+    fontSize: 10,
+    fontWeight: '800',
+    color: POS_COLORS.muted,
+    letterSpacing: 0.6,
   },
   kpiValue: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
     marginVertical: 2,
   },
   kpiSub: {
-    fontSize: 14,
-    color: COLORS.tOBlack,
+    fontSize: 12,
+    color: POS_COLORS.muted,
+    fontWeight: '600',
   },
 
   // Pestañas
@@ -1162,35 +1194,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
-    backgroundColor: COLORS.background,
+    backgroundColor: POS_COLORS.canvas,
     gap: 8,
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: BORDER_RADIUS.sm,
-    shadowColor: COLORS.card,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    borderWidth: 0.5,
-    borderColor: COLORS.card,
-    backgroundColor: COLORS.background,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
+    backgroundColor: POS_COLORS.surfaceStrong,
   },
   tabButtonActive: {
-    backgroundColor: 'rgba(92, 139, 248, 0.15)',
+    backgroundColor: POS_COLORS.primarySoft,
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: '#C7DDCE',
   },
   tabButtonText: {
     ...TYPOGRAPHY.caption,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
   },
   tabButtonTextActive: {
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
     fontWeight: '800',
   },
 
@@ -1200,18 +1228,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.background,
+    backgroundColor: POS_COLORS.canvas,
   },
   searchInput: {
     flex: 1,
-    height: 38,
-    backgroundColor: COLORS.background,
-    borderColor: COLORS.primary,
+    height: 42,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    borderColor: POS_COLORS.line,
     borderWidth: 1,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: 12,
     paddingHorizontal: SPACING.md,
-    color: COLORS.text,
-    fontSize: 13,
+    color: POS_COLORS.ink,
+    fontSize: 14,
   },
   clearSearchBtn: {
     position: 'absolute',
@@ -1219,34 +1247,35 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   clearSearchBtnText: {
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     fontSize: 14,
   },
   categoriesFilterBar: {
     paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.sm,
-    backgroundColor: COLORS.background,
+    backgroundColor: POS_COLORS.canvas,
   },
   categoryFilterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: BORDER_RADIUS.round,
-    backgroundColor: COLORS.background,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: POS_COLORS.surfaceStrong,
     marginRight: 6,
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: POS_COLORS.line,
   },
   categoryFilterChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primarySoft,
+    borderColor: '#C7DDCE',
   },
   categoryFilterChipText: {
-    fontSize: 11,
-    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    color: POS_COLORS.muted,
   },
   categoryFilterChipTextActive: {
-    color: '#FFF',
-    fontWeight: '700',
+    color: POS_COLORS.primaryDark,
+    fontWeight: '800',
   },
 
   // Listado de Platos
@@ -1257,43 +1286,47 @@ const styles = StyleSheet.create({
   },
   platoCard: {
     flexDirection: 'row',
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.md,
-    shadowColor: COLORS.card,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
+    shadowColor: '#17221B',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
     overflow: 'hidden',
     padding: SPACING.sm,
   },
   platoCardPausado: {
     opacity: 0.65,
-    borderColor: '#EF4444',
+    borderColor: '#F2C4C8',
   },
   platoImageWrapper: {
     width: 100,
     height: 100,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
+    backgroundColor: POS_COLORS.line,
   },
   platoImage: {
-    width: '130%',
-    height: '130%',
+    width: '100%',
+    height: '100%',
   },
   disponibleBadge: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    paddingVertical: 2,
+    paddingVertical: 3,
     alignItems: 'center',
   },
   disponibleBadgeActivo: {
-    backgroundColor: 'rgba(16, 185, 129, 0.9)',
+    backgroundColor: POS_COLORS.primary,
   },
   disponibleBadgePausado: {
-    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    backgroundColor: 'rgba(239, 68, 68, 0.92)',
   },
   disponibleBadgeText: {
     fontSize: 8,
@@ -1318,26 +1351,28 @@ const styles = StyleSheet.create({
   },
   platoNombre: {
     ...TYPOGRAPHY.body,
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '800',
+    color: POS_COLORS.ink,
     flex: 1,
   },
   categoriaTag: {
-    backgroundColor: COLORS.background,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.xs,
+    backgroundColor: POS_COLORS.primarySoft,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#C7DDCE',
   },
   categoriaTagText: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    color: POS_COLORS.primaryDark,
   },
   platoDescripcion: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    lineHeight: 15,
+    fontSize: 12,
+    color: POS_COLORS.muted,
+    lineHeight: 16,
     marginVertical: 2,
   },
   platoPrecioRow: {
@@ -1348,62 +1383,68 @@ const styles = StyleSheet.create({
   },
   platoPrecioLabel: {
     fontSize: 12,
-    color: COLORS.text,
+    color: POS_COLORS.muted,
+    fontWeight: '600',
   },
   platoPrecio: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '900',
-    color: '#10B981',
+    color: POS_COLORS.primaryDark,
   },
 
   // Acciones en tarjeta de plato
   platoActionsColumn: {
-    width: 95,
+    width: 98,
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     paddingLeft: 6,
   },
   btnPrecioRapido: {
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    borderColor: '#F59E0B',
+    backgroundColor: POS_COLORS.primarySoft,
+    borderColor: '#C7DDCE',
     borderWidth: 1,
     paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.xs,
+    paddingVertical: 4,
+    borderRadius: 8,
     width: '100%',
     alignItems: 'center',
   },
   btnPrecioRapidoText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#F59E0B',
+    color: POS_COLORS.primaryDark,
   },
   btnEditarPlato: {
-    backgroundColor: 'rgba(255, 255, 255, 1)',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 12,
+    backgroundColor: POS_COLORS.primarySoft,
+    borderWidth: 1,
+    borderColor: '#C7DDCE',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 10,
     width: '100%',
     alignItems: 'center',
-    marginTop: 3,
+    marginTop: 2,
   },
   btnEditarPlatoText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#63B3ED',
+    fontWeight: '800',
+    color: POS_COLORS.primaryDark,
   },
   switchWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 4,
     marginTop: 2,
   },
   switchLabel: {
-    fontSize: 9,
-    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: '600',
+    color: POS_COLORS.muted,
   },
   btnBorrarIcon: {
-    padding: 3,
+    padding: 5,
+    borderRadius: 8,
+    backgroundColor: '#FFF1F2',
     alignSelf: 'flex-end',
   },
   btnBorrarIconText: {
@@ -1419,52 +1460,61 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...TYPOGRAPHY.h3,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
-    color: COLORS.text,
+    color: POS_COLORS.ink,
   },
   btnNuevaCategoria: {
-    backgroundColor: '#63B3ED',
+    backgroundColor: POS_COLORS.primaryDark,
     paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.sm,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
   btnNuevaCategoriaText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   categoriaCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.card,
-    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    borderRadius: 14,
     padding: SPACING.md,
-    marginBottom: 8,
+    marginBottom: 9,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
+    shadowColor: '#17221B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 1,
   },
   categoriaIconBox: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    backgroundColor: POS_COLORS.primarySoft,
+    borderWidth: 1,
+    borderColor: '#C7DDCE',
     justifyContent: 'center',
     alignItems: 'center',
   },
   categoriaIcon: {
-    width: 26,
-    height: 26,
+    width: 24,
+    height: 24,
+    tintColor: POS_COLORS.primaryDark,
   },
   categoriaNombre: {
     ...TYPOGRAPHY.body,
     fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.text,
+    fontWeight: '800',
+    color: POS_COLORS.ink,
   },
   categoriaSubtext: {
-    fontSize: 11,
-    color: COLORS.textMuted,
+    fontSize: 12,
+    color: POS_COLORS.muted,
+    marginTop: 2,
   },
   categoriaButtonsRow: {
     flexDirection: 'row',
@@ -1472,20 +1522,25 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   btnCatEditar: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.xs,
+    backgroundColor: POS_COLORS.primarySoft,
+    borderWidth: 1,
+    borderColor: '#C7DDCE',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 9,
   },
   btnCatEditarText: {
-    fontSize: 11,
-    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: '700',
+    color: POS_COLORS.primaryDark,
   },
   btnCatEliminar: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.xs,
+    backgroundColor: '#FFF1F2',
+    borderWidth: 1,
+    borderColor: '#F2C4C8',
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    borderRadius: 9,
   },
   btnCatEliminarText: {
     fontSize: 12,
@@ -1494,7 +1549,7 @@ const styles = StyleSheet.create({
   // Modales
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    backgroundColor: 'rgba(7, 19, 13, 0.76)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.md,
@@ -1502,12 +1557,17 @@ const styles = StyleSheet.create({
   modalContainer: {
     width: '100%',
     maxWidth: 500,
-    backgroundColor: COLORS.card,
-    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
     maxHeight: '90%',
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.28,
+    shadowRadius: 28,
+    elevation: 18,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1515,20 +1575,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: POS_COLORS.line,
+    backgroundColor: POS_COLORS.surfaceStrong,
   },
   modalTitle: {
     ...TYPOGRAPHY.h3,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
-    color: COLORS.text,
+    color: POS_COLORS.ink,
   },
   modalCloseBtn: {
-    padding: 6,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: POS_COLORS.surface,
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalCloseBtnText: {
-    fontSize: 16,
-    color: COLORS.textMuted,
+    fontSize: 15,
+    fontWeight: '700',
+    color: POS_COLORS.muted,
   },
   modalBody: {
     padding: SPACING.md,
@@ -1537,23 +1606,25 @@ const styles = StyleSheet.create({
   // Inputs
   inputLabel: {
     fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.textMuted,
-    marginBottom: 4,
+    fontWeight: '800',
+    color: POS_COLORS.muted,
+    marginBottom: 5,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   input: {
-    height: 42,
-    backgroundColor: COLORS.background,
-    borderColor: COLORS.border,
+    height: 44,
+    backgroundColor: POS_COLORS.surface,
+    borderColor: POS_COLORS.line,
     borderWidth: 1,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: 11,
     paddingHorizontal: SPACING.md,
-    color: COLORS.text,
-    fontSize: 13,
+    color: POS_COLORS.ink,
+    fontSize: 14,
   },
   textArea: {
-    height: 70,
-    paddingTop: 8,
+    height: 76,
+    paddingTop: 10,
     textAlignVertical: 'top',
   },
   formRow: {
@@ -1561,34 +1632,37 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   catSelectChip: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
     paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.sm,
-    backgroundColor: COLORS.background,
+    borderRadius: 9,
+    backgroundColor: POS_COLORS.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
   },
   catSelectChipActive: {
-    backgroundColor: 'rgba(92, 139, 248, 0.2)',
-    borderColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primarySoft,
+    borderColor: POS_COLORS.primary,
   },
   catSelectChipText: {
-    fontSize: 11,
-    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    color: POS_COLORS.muted,
   },
   catSelectChipTextActive: {
-    color: COLORS.primary,
-    fontWeight: '700',
+    color: POS_COLORS.primaryDark,
+    fontWeight: '800',
   },
 
   // Imagen Preview
   previewImageContainer: {
     height: 140,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: 14,
     overflow: 'hidden',
     marginBottom: SPACING.md,
     position: 'relative',
-    backgroundColor: COLORS.background,
+    backgroundColor: POS_COLORS.surface,
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
   },
   previewImage: {
     width: '100%',
@@ -1598,10 +1672,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.xs,
+    backgroundColor: 'rgba(7, 19, 13, 0.72)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 7,
   },
   previewImageBadgeText: {
     color: '#FFF',
@@ -1615,49 +1689,51 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   btnTogglePresets: {
-    fontSize: 11,
-    color: '#63B3ED',
-    fontWeight: '700',
+    fontSize: 12,
+    color: POS_COLORS.primary,
+    fontWeight: '800',
   },
 
   // Galería de Presets
   presetsBox: {
-    backgroundColor: COLORS.background,
+    backgroundColor: POS_COLORS.surface,
     padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: 12,
     marginTop: 6,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
   },
   presetsBoxTitle: {
-    fontSize: 10,
-    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
+    color: POS_COLORS.muted,
     marginBottom: 6,
   },
   presetsList: {
     gap: 8,
   },
   presetItem: {
-    width: 75,
+    width: 78,
     alignItems: 'center',
-    padding: 4,
-    borderRadius: BORDER_RADIUS.xs,
-    backgroundColor: COLORS.card,
+    padding: 5,
+    borderRadius: 9,
+    backgroundColor: POS_COLORS.surfaceStrong,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: POS_COLORS.line,
   },
   presetItemActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: 'rgba(92, 139, 248, 0.15)',
+    borderColor: POS_COLORS.primary,
+    backgroundColor: POS_COLORS.primarySoft,
   },
   presetImage: {
-    width: 65,
+    width: 66,
     height: 50,
-    borderRadius: BORDER_RADIUS.xs,
+    borderRadius: 6,
   },
   presetLabel: {
-    fontSize: 9,
-    color: COLORS.textMuted,
+    fontSize: 9.5,
+    fontWeight: '600',
+    color: POS_COLORS.ink,
     marginTop: 4,
     textAlign: 'center',
   },
@@ -1667,24 +1743,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: POS_COLORS.surface,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: 12,
     marginTop: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
   },
   disponibilidadSub: {
-    fontSize: 10,
-    color: COLORS.textMuted,
+    fontSize: 11,
+    color: POS_COLORS.muted,
     marginTop: 2,
   },
 
   // Botón Submit Modal
   btnSubmitModal: {
-    backgroundColor: COLORS.primary,
-    height: 44,
-    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: POS_COLORS.primaryDark,
+    height: 48,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: SPACING.lg,
@@ -1694,7 +1770,7 @@ const styles = StyleSheet.create({
   },
   btnSubmitModalText: {
     ...TYPOGRAPHY.button,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
     color: '#FFF',
   },
@@ -1704,17 +1780,17 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.h3,
     fontSize: 16,
     fontWeight: '800',
-    color: COLORS.text,
+    color: POS_COLORS.ink,
   },
   precioRapidoActual: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     marginTop: 2,
   },
   inputPrecioGrande: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#10B981',
+    color: POS_COLORS.primaryDark,
     textAlign: 'center',
     height: 48,
   },
@@ -1726,17 +1802,17 @@ const styles = StyleSheet.create({
   },
   btnIncremento: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: POS_COLORS.primarySoft,
     paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.xs,
+    borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#C7DDCE',
   },
   btnIncrementoText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.text,
+    fontWeight: '800',
+    color: POS_COLORS.primaryDark,
   },
   modalButtonsRow: {
     flexDirection: 'row',
@@ -1745,50 +1821,52 @@ const styles = StyleSheet.create({
   },
   btnModalAction: {
     flex: 1,
-    height: 40,
-    borderRadius: BORDER_RADIUS.sm,
+    height: 44,
+    borderRadius: 11,
     justifyContent: 'center',
     alignItems: 'center',
   },
   btnModalCancel: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: POS_COLORS.surface,
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
   },
   btnModalCancelText: {
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 13,
   },
   btnModalSave: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primaryDark,
   },
   btnModalSaveText: {
     color: '#FFF',
     fontWeight: '800',
-    fontSize: 12,
+    fontSize: 13,
   },
   btnModalDelete: {
-    backgroundColor: '#EF4444',
+    backgroundColor: COLORS.danger,
   },
   btnModalDeleteText: {
     color: '#FFF',
     fontWeight: '800',
-    fontSize: 12,
+    fontSize: 13,
   },
 
   // Confirmación
   confirmTitle: {
     ...TYPOGRAPHY.h3,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
-    color: COLORS.text,
+    color: POS_COLORS.ink,
     textAlign: 'center',
   },
   confirmSub: {
-    fontSize: 12,
-    color: COLORS.textMuted,
+    fontSize: 13,
+    color: POS_COLORS.muted,
     textAlign: 'center',
     marginTop: 6,
-    lineHeight: 18,
+    lineHeight: 19,
   },
 
   // Helpers
@@ -1799,7 +1877,7 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
   },
   loadingText: {
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     marginTop: 10,
     fontSize: 13,
   },
@@ -1810,12 +1888,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...TYPOGRAPHY.h3,
-    fontSize: 15,
-    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '800',
+    color: POS_COLORS.ink,
   },
   emptySub: {
-    fontSize: 12,
-    color: COLORS.textMuted,
+    fontSize: 13,
+    color: POS_COLORS.muted,
     marginTop: 4,
     textAlign: 'center',
   },

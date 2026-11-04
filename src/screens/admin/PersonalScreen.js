@@ -16,7 +16,14 @@ import {
 } from 'react-native';
 import empleadoService, { ROLES_DISPONIBLES } from '../../services/EmpleadoService';
 import productService from '../../services/ProductService';
-import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
+import {
+  COLORS,
+  POS_COLORS,
+  SPACING,
+  BORDER_RADIUS,
+  TYPOGRAPHY,
+} from '../../theme/theme';
+import { PRODUCT_CONFIG } from '../../config/productConfig';
 
 // ─── Constantes de UI ─────────────────────────────────────────────────────────
 
@@ -30,11 +37,11 @@ const FORM_INICIAL = {
 };
 
 const ROL_COLORES = {
-  cajero: { bg: 'rgba(248, 92, 92, 0.15)', text: '#f85c5c' },
-  cocinero: { bg: 'rgba(242, 169, 59, 0.15)', text: '#F2A93B' },
-  mozo: { bg: 'rgba(99, 179, 237, 0.15)', text: '#63B3ED' },
-  supervisor: { bg: 'rgba(167, 139, 250, 0.15)', text: '#A78BFA' },
-  admin: { bg: 'rgba(16, 185, 129, 0.15)', text: '#10B981' },
+  cajero: { bg: POS_COLORS.primarySoft, text: POS_COLORS.primaryDark },
+  cocinero: { bg: '#FFF8E8', text: '#A66A16' },
+  mozo: { bg: '#F0F9FF', text: '#0369A1' },
+  supervisor: { bg: '#EEF2FF', text: '#4338CA' },
+  admin: { bg: '#ECFDF5', text: '#047857' },
 };
 
 const formatPrice = (value) =>
@@ -153,7 +160,7 @@ export default function PersonalScreen({ userProfile, onClose }) {
   };
 
   const getRolColor = (rol) =>
-    ROL_COLORES[rol] || { bg: 'rgba(148, 163, 184, 0.15)', text: COLORS.textMuted };
+    ROL_COLORES[rol] || { bg: POS_COLORS.surface, text: POS_COLORS.muted };
 
   // ─── Render de tarjeta de empleado ───────────────────────────────────────────
 
@@ -223,7 +230,10 @@ export default function PersonalScreen({ userProfile, onClose }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={PRODUCT_CONFIG.branding.primaryDark}
+      />
 
       {/* HEADER */}
       <View style={styles.header}>
@@ -260,7 +270,7 @@ export default function PersonalScreen({ userProfile, onClose }) {
       {/* LISTA DE EMPLEADOS */}
       {loading ? (
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={POS_COLORS.primary} />
           <Text style={styles.loaderText}>Cargando personal...</Text>
         </View>
       ) : empleados.length === 0 ? (
@@ -298,7 +308,10 @@ export default function PersonalScreen({ userProfile, onClose }) {
               <Text style={styles.formModalTitle}>
                 {empleadoEditando ? '✏️ Editar Empleado' : '➕ Nuevo Empleado'}
               </Text>
-              <TouchableOpacity onPress={cerrarForm}>
+              <TouchableOpacity
+                style={styles.formModalCloseBtn}
+                onPress={cerrarForm}
+              >
                 <Text style={styles.formModalClose}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -313,7 +326,7 @@ export default function PersonalScreen({ userProfile, onClose }) {
               <TextInput
                 style={styles.fieldInput}
                 placeholder="Ej. Juan García"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={POS_COLORS.muted}
                 value={formData.nombre}
                 onChangeText={(v) => setFormData((p) => ({ ...p, nombre: v }))}
                 autoCapitalize="words"
@@ -396,7 +409,7 @@ export default function PersonalScreen({ userProfile, onClose }) {
               <TextInput
                 style={styles.fieldInput}
                 placeholder="Ej. 2500000"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={POS_COLORS.muted}
                 value={formData.sueldoBase}
                 onChangeText={(v) =>
                   setFormData((p) => ({ ...p, sueldoBase: v.replace(/\D/g, '') }))
@@ -409,7 +422,7 @@ export default function PersonalScreen({ userProfile, onClose }) {
               <TextInput
                 style={styles.fieldInput}
                 placeholder="Ej. 0981 123 456"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={POS_COLORS.muted}
                 value={formData.telefono}
                 onChangeText={(v) => setFormData((p) => ({ ...p, telefono: v }))}
                 keyboardType="phone-pad"
@@ -420,7 +433,7 @@ export default function PersonalScreen({ userProfile, onClose }) {
               <TextInput
                 style={styles.fieldInput}
                 placeholder="Ej. 2025-01-15"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={POS_COLORS.muted}
                 value={formData.fechaIngreso}
                 onChangeText={(v) => setFormData((p) => ({ ...p, fechaIngreso: v }))}
               />
@@ -489,7 +502,7 @@ export default function PersonalScreen({ userProfile, onClose }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: POS_COLORS.canvas,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
 
@@ -499,23 +512,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
-    backgroundColor: COLORS.secondaryBackground,
+    paddingVertical: 12,
+    backgroundColor: PRODUCT_CONFIG.branding.primaryDark,
+    backgroundImage:
+      'linear-gradient(110deg, #07130D 0%, #183B2A 58%, #244B35 100%)',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(92, 139, 248, 0.15)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 3,
+    borderBottomColor: 'rgba(255, 255, 255, 0.10)',
+    shadowColor: '#07130D',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 7,
   },
   headerTitle: {
-    ...TYPOGRAPHY.h1,
-    color: COLORS.primary,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
-    ...TYPOGRAPHY.caption,
-    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(232, 242, 235, 0.75)',
     marginTop: 2,
   },
   headerActions: {
@@ -524,29 +542,31 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   btnAgregar: {
-    backgroundColor: COLORS.success,
-    paddingVertical: SPACING.xs + 4,
+    backgroundColor: PRODUCT_CONFIG.branding.primaryBright,
+    paddingVertical: 9,
     paddingHorizontal: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
   },
   btnAgregarText: {
-    color: COLORS.textLight,
-    fontWeight: '700',
-    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 13,
   },
   btnCerrar: {
-    backgroundColor: '#F1F5F9',
-    width: 36,
-    height: 36,
-    borderRadius: BORDER_RADIUS.round,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   btnCerrarText: {
-    color: '#475569',
-    fontSize: 16,
+    color: '#FFFFFF',
+    fontSize: 15,
     fontWeight: '700',
   },
 
@@ -559,18 +579,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusSuccess: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: POS_COLORS.primarySoft,
     borderWidth: 1,
-    borderColor: COLORS.success,
+    borderColor: '#C7DDCE',
   },
   statusError: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    backgroundColor: '#FFF1F2',
     borderWidth: 1,
-    borderColor: COLORS.danger,
+    borderColor: '#F2C4C8',
   },
   statusText: {
     ...TYPOGRAPHY.body,
-    fontWeight: '600',
+    color: POS_COLORS.ink,
+    fontWeight: '700',
     fontSize: 13,
   },
 
@@ -582,7 +603,8 @@ const styles = StyleSheet.create({
   },
   loaderText: {
     marginTop: SPACING.md,
-    ...TYPOGRAPHY.bodyMuted,
+    color: POS_COLORS.muted,
+    fontSize: 14,
   },
   emptyContainer: {
     flex: 1,
@@ -597,12 +619,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: COLORS.secondaryText,
+    color: POS_COLORS.ink,
     textAlign: 'center',
     marginBottom: SPACING.sm,
   },
   emptySubtitle: {
-    ...TYPOGRAPHY.bodyMuted,
+    color: POS_COLORS.muted,
+    fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -615,19 +638,19 @@ const styles = StyleSheet.create({
 
   // Tarjeta de empleado
   empleadoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    borderRadius: 14,
     padding: SPACING.md,
     marginBottom: SPACING.md,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.12)',
+    borderColor: POS_COLORS.line,
     // Sombra iOS
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowColor: '#17221B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     // Sombra Android
     elevation: 2,
   },
@@ -635,7 +658,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: BORDER_RADIUS.round,
-    backgroundColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primaryDark,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING.md,
@@ -652,7 +675,7 @@ const styles = StyleSheet.create({
   empleadoNombre: {
     ...TYPOGRAPHY.body,
     fontWeight: '800',
-    color: '#0F172A',
+    color: POS_COLORS.ink,
     marginBottom: 4,
   },
   empleadoMeta: {
@@ -674,17 +697,17 @@ const styles = StyleSheet.create({
   },
   sucursalText: {
     ...TYPOGRAPHY.caption,
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   sueldoText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.primary,
-    fontWeight: '700',
+    color: POS_COLORS.primaryDark,
+    fontWeight: '800',
     marginTop: 2,
   },
   telefonoText: {
     ...TYPOGRAPHY.caption,
-    color: '#64748B',
+    color: POS_COLORS.muted,
     marginTop: 2,
   },
   empleadoAcciones: {
@@ -695,21 +718,21 @@ const styles = StyleSheet.create({
   accionBtn: {
     width: 38,
     height: 38,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
   },
   accionEditar: {
-    backgroundColor: 'rgba(92, 139, 248, 0.1)',
-    borderColor: 'rgba(92, 139, 248, 0.3)',
+    backgroundColor: POS_COLORS.primarySoft,
+    borderColor: '#C7DDCE',
   },
   accionEditarText: {
     fontSize: 16,
   },
   accionBaja: {
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-    borderColor: 'rgba(239, 68, 68, 0.25)',
+    backgroundColor: '#FFF1F2',
+    borderColor: '#F2C4C8',
   },
   accionBajaText: {
     fontSize: 16,
@@ -718,19 +741,21 @@ const styles = StyleSheet.create({
   // Modal de formulario
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    backgroundColor: 'rgba(7, 19, 13, 0.76)',
     justifyContent: 'flex-end',
   },
   formModal: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: BORDER_RADIUS.xl,
-    borderTopRightRadius: BORDER_RADIUS.xl,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderTopWidth: 1,
+    borderTopColor: POS_COLORS.line,
     maxHeight: '92%',
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
     elevation: 20,
   },
   formModalHeader: {
@@ -739,18 +764,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(92, 139, 248, 0.15)',
+    borderBottomColor: POS_COLORS.line,
+    backgroundColor: POS_COLORS.surfaceStrong,
   },
   formModalTitle: {
     ...TYPOGRAPHY.h3,
-    color: '#0F172A',
+    color: POS_COLORS.ink,
     fontWeight: '800',
   },
+  formModalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: POS_COLORS.surface,
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   formModalClose: {
-    color: '#64748B',
-    fontSize: 20,
+    color: POS_COLORS.muted,
+    fontSize: 16,
     fontWeight: '700',
-    padding: SPACING.xs,
   },
   formScroll: {
     flex: 1,
@@ -763,20 +798,23 @@ const styles = StyleSheet.create({
   // Campos del formulario
   fieldLabel: {
     ...TYPOGRAPHY.caption,
-    color: '#0F172A',
-    fontWeight: '700',
+    color: POS_COLORS.muted,
+    fontWeight: '800',
+    fontSize: 11,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
     marginBottom: 6,
     marginTop: SPACING.md,
   },
   fieldInput: {
     height: 46,
-    backgroundColor: '#F8FAFC',
-    borderColor: 'rgba(92, 139, 248, 0.15)',
+    backgroundColor: POS_COLORS.surface,
+    borderColor: POS_COLORS.line,
     borderWidth: 1,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: 11,
     paddingHorizontal: SPACING.md,
-    color: '#0F172A',
-    ...TYPOGRAPHY.body,
+    color: POS_COLORS.ink,
+    fontSize: 14,
   },
 
   // Selector de rol
@@ -788,14 +826,14 @@ const styles = StyleSheet.create({
   rolOption: {
     paddingVertical: 8,
     paddingHorizontal: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    backgroundColor: POS_COLORS.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: POS_COLORS.line,
   },
   rolOptionText: {
     fontSize: 13,
-    color: '#64748B',
+    color: POS_COLORS.muted,
     fontWeight: '600',
   },
 
@@ -807,22 +845,22 @@ const styles = StyleSheet.create({
   sucursalOption: {
     paddingVertical: 8,
     paddingHorizontal: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    backgroundColor: POS_COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.12)',
+    borderColor: POS_COLORS.line,
   },
   sucursalOptionSelected: {
-    backgroundColor: 'rgba(92, 139, 248, 0.15)',
-    borderColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primarySoft,
+    borderColor: POS_COLORS.primary,
   },
   sucursalOptionText: {
     fontSize: 13,
-    color: '#64748B',
+    color: POS_COLORS.muted,
     fontWeight: '600',
   },
   sucursalOptionTextSelected: {
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
     fontWeight: '800',
   },
 
@@ -831,27 +869,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(92, 139, 248, 0.12)',
+    borderTopColor: POS_COLORS.line,
+    backgroundColor: POS_COLORS.surfaceStrong,
   },
   btnGuardar: {
-    backgroundColor: COLORS.success,
-    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: POS_COLORS.primaryDark,
+    borderRadius: 13,
     height: 52,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: POS_COLORS.primaryDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   btnGuardarDisabled: {
     opacity: 0.6,
   },
   btnGuardarText: {
     ...TYPOGRAPHY.button,
-    fontSize: 17,
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 
   // Modal de confirmación de baja
   confirmOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    backgroundColor: 'rgba(7, 19, 13, 0.76)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
@@ -859,16 +905,16 @@ const styles = StyleSheet.create({
   confirmBox: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#FFFFFF',
-    borderRadius: BORDER_RADIUS.xl,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    borderRadius: 22,
     padding: SPACING.lg,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.2)',
+    borderColor: POS_COLORS.line,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
     elevation: 10,
   },
   confirmEmoji: {
@@ -879,12 +925,13 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.h2,
     textAlign: 'center',
     marginBottom: SPACING.xs,
-    color: '#0F172A',
+    color: POS_COLORS.ink,
+    fontWeight: '800',
   },
   confirmNombre: {
     ...TYPOGRAPHY.body,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
     marginBottom: SPACING.md,
     textAlign: 'center',
   },
@@ -893,7 +940,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: SPACING.lg,
     lineHeight: 20,
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   confirmButtons: {
     flexDirection: 'row',
@@ -902,18 +949,18 @@ const styles = StyleSheet.create({
   },
   confirmBtn: {
     flex: 1,
-    height: 48,
-    borderRadius: BORDER_RADIUS.md,
+    height: 46,
+    borderRadius: 11,
     justifyContent: 'center',
     alignItems: 'center',
   },
   confirmBtnCancel: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: POS_COLORS.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: POS_COLORS.line,
   },
   confirmBtnCancelText: {
-    color: '#475569',
+    color: POS_COLORS.muted,
     fontWeight: '700',
   },
   confirmBtnDelete: {
@@ -921,6 +968,6 @@ const styles = StyleSheet.create({
   },
   confirmBtnDeleteText: {
     color: COLORS.textLight,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });
