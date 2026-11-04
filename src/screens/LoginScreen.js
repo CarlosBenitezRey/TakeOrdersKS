@@ -22,7 +22,7 @@ const BRAND = PRODUCT_CONFIG.branding;
 
 export default function LoginScreen({ onLoginSuccess }) {
   const { height } = useWindowDimensions();
-  const compact = height < 720;
+  const compact = height < 780;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -188,17 +188,39 @@ export default function LoginScreen({ onLoginSuccess }) {
             </View>
 
             <View style={styles.footer}>
-              <Text style={styles.footerText}>{PRODUCT_CONFIG.attribution.prefix}</Text>
               <Pressable
                 accessibilityRole="link"
                 accessibilityLabel="Abrir el sitio web de Manageopy"
                 hitSlop={8}
                 onPress={handleOpenManageopy}
-                style={({ pressed }) => pressed && styles.manageopyLinkPressed}
+                style={({ pressed }) => [
+                  styles.manageopyAttribution,
+                  pressed && styles.manageopyLinkPressed,
+                ]}
               >
-                <Text style={styles.manageopyLink}>{PRODUCT_CONFIG.attribution.label}</Text>
+                <View style={styles.manageopyLogoFrame}>
+                  <Image
+                    accessibilityIgnoresInvertColors
+                    resizeMode="contain"
+                    source={PRODUCT_CONFIG.attribution.logo}
+                    style={styles.manageopyLogo}
+                  />
+                </View>
+                <View style={styles.manageopyCopy}>
+                  <Text style={styles.manageopyEyebrow}>
+                    {PRODUCT_CONFIG.attribution.prefix}
+                  </Text>
+                  <View style={styles.manageopyNameRow}>
+                    <Text style={styles.manageopyLink}>
+                      {PRODUCT_CONFIG.attribution.label}
+                    </Text>
+                    <Text accessibilityElementsHidden style={styles.externalLinkIcon}>
+                      ↗
+                    </Text>
+                    <Text style={styles.manageopyVersion}>{APP_VERSION_LABEL}</Text>
+                  </View>
+                </View>
               </Pressable>
-              <Text style={styles.footerText}>· {APP_VERSION_LABEL}</Text>
             </View>
           </View>
         </ScrollView>
@@ -463,25 +485,80 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   footer: {
-    marginTop: 20,
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  manageopyAttribution: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 8,
+    paddingVertical: 2,
+    paddingHorizontal: 3,
+    borderRadius: 10,
+  },
+  manageopyLogoFrame: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 7,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  footerText: {
-    color: 'rgba(232, 242, 235, 0.62)',
-    fontSize: 10,
-    fontWeight: '600',
+  manageopyLogo: {
+    width: 22,
+    height: 22,
+  },
+  manageopyCopy: {
+    alignItems: 'flex-start',
+  },
+  manageopyEyebrow: {
+    marginBottom: 1,
+    color: 'rgba(232, 242, 235, 0.48)',
+    fontSize: 7,
+    lineHeight: 9,
+    fontWeight: '800',
+    letterSpacing: 1.05,
+    textTransform: 'uppercase',
+  },
+  manageopyNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   manageopyLink: {
-    color: 'rgba(245, 250, 247, 0.96)',
-    fontSize: 10,
+    color: '#FFFFFF',
+    fontSize: 14,
+    lineHeight: 17,
     fontWeight: '900',
-    textDecorationLine: 'underline',
+    letterSpacing: -0.3,
+  },
+  externalLinkIcon: {
+    color: 'rgba(255, 255, 255, 0.88)',
+    fontSize: 13,
+    lineHeight: 15,
+    fontWeight: '500',
+  },
+  manageopyVersion: {
+    marginLeft: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 5,
+    overflow: 'hidden',
+    color: 'rgba(232, 242, 235, 0.58)',
+    fontSize: 7,
+    lineHeight: 9,
+    fontWeight: '800',
+    letterSpacing: 0.45,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   manageopyLinkPressed: {
-    opacity: 0.62,
+    opacity: 0.68,
   },
 });

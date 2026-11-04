@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   FlatList,
   TextInput,
-  ActivityIndicator,
   SafeAreaView,
   Platform,
   StatusBar,
@@ -15,6 +14,7 @@ import {
 import facturaService from '../../services/FacturaService';
 import productService from '../../services/ProductService';
 import TicketFacturaModal from '../../components/TicketFacturaModal';
+import PremiumLoader from '../../components/PremiumLoader';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');
@@ -176,10 +176,10 @@ export default function FacturasScreen({ userProfile, onClose }) {
 
       {/* ── LISTADO DE FACTURAS ────────────────────────────────────────────── */}
       {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Cargando comprobantes...</Text>
-        </View>
+        <PremiumLoader
+          message="Cargando comprobantes"
+          detail="Organizando facturas y tickets"
+        />
       ) : facturasFiltradas.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>🧾</Text>
@@ -440,16 +440,6 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 12,
     fontWeight: '700',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: COLORS.textMuted,
-    marginTop: SPACING.sm,
-    fontSize: 13,
   },
   emptyContainer: {
     flex: 1,

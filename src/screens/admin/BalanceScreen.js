@@ -5,13 +5,13 @@ import {
   View,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
   SafeAreaView,
   Platform,
   StatusBar,
 } from 'react-native';
 import balanceService from '../../services/BalanceService';
 import productService from '../../services/ProductService';
+import PremiumLoader from '../../components/PremiumLoader';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');
@@ -179,10 +179,10 @@ export default function BalanceScreen({ userProfile, onClose }) {
       )}
 
       {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Consolidando balances contables...</Text>
-        </View>
+        <PremiumLoader
+          message="Calculando el balance"
+          detail="Consolidando ingresos, egresos y resultados"
+        />
       ) : (
         <ScrollView
           style={styles.contentScroll}
@@ -792,17 +792,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: SPACING.md,
   },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    ...TYPOGRAPHY.body,
-    color: '#64748B',
-    marginTop: SPACING.md,
-  },
-
   // Grid de KPIs
   kpiGrid: {
     flexDirection: 'row',

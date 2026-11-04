@@ -17,6 +17,20 @@ export const COLORS = {
   secondaryBackground: '#ffffff',
 };
 
+// Paleta del punto de venta: neutros calmados y un único color de marca.
+// Las fotografías del menú aportan el resto del color a la interfaz.
+export const POS_COLORS = {
+  canvas: '#F4F6F3',
+  surface: '#F8FAF8',
+  surfaceStrong: '#FFFFFF',
+  ink: '#1D2721',
+  muted: '#69746D',
+  line: '#DDE3DE',
+  primary: '#356A4B',
+  primaryDark: '#244B35',
+  primarySoft: '#E6F0E9',
+};
+
 export const SPACING = {
   xs: 4,
   sm: 8,

@@ -22,6 +22,7 @@ import proveedorService, { CATEGORIAS_PROVEEDOR } from '../../services/Proveedor
 import empleadoService, { ROLES_DISPONIBLES } from '../../services/EmpleadoService';
 import productService from '../../services/ProductService';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
+import PremiumLoader from '../../components/PremiumLoader';
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');
 
@@ -366,10 +367,10 @@ export default function PagosScreen({ userProfile, onClose }) {
 
       {/* ── CONTENIDO DEL TAB ──────────────────────────────────────────────── */}
       {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Cargando datos de pagos...</Text>
-        </View>
+        <PremiumLoader
+          message="Cargando pagos"
+          detail="Sincronizando movimientos y proveedores"
+        />
       ) : activeTab === 'salarios' ? (
         // ─── TAB SALARIOS ──────────────────────────────────────────────────
         <View style={styles.tabContent}>
@@ -1382,16 +1383,6 @@ const styles = StyleSheet.create({
   },
   deleteMiniBtnText: {
     fontSize: 14,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: COLORS.textMuted,
-    marginTop: SPACING.sm,
-    fontSize: 13,
   },
   emptyContainer: {
     flex: 1,
