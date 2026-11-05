@@ -21,22 +21,17 @@ import pagoService, {
 import proveedorService, { CATEGORIAS_PROVEEDOR } from '../../services/ProveedorService';
 import empleadoService, { ROLES_DISPONIBLES } from '../../services/EmpleadoService';
 import productService from '../../services/ProductService';
-import {
-  COLORS,
-  POS_COLORS,
-  SPACING,
-  BORDER_RADIUS,
-  TYPOGRAPHY,
-} from '../../theme/theme';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
+import PremiumLoader from '../../components/PremiumLoader';
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');
 
 const ROL_COLORES = {
-  cajero:     { bg: POS_COLORS.primarySoft, text: POS_COLORS.primaryDark },
-  cocinero:   { bg: 'rgba(242, 169, 59, 0.16)', text: '#B87414' },
-  mozo:       { bg: 'rgba(90, 152, 112, 0.16)', text: POS_COLORS.primary },
+  cajero: { bg: POS_COLORS.primarySoft, text: POS_COLORS.primaryDark },
+  cocinero: { bg: 'rgba(242, 169, 59, 0.16)', text: '#B87414' },
+  mozo: { bg: 'rgba(90, 152, 112, 0.16)', text: POS_COLORS.primary },
   supervisor: { bg: 'rgba(53, 106, 75, 0.14)', text: POS_COLORS.primaryDark },
-  admin:      { bg: POS_COLORS.primarySoft, text: POS_COLORS.primaryDark },
+  admin: { bg: POS_COLORS.primarySoft, text: POS_COLORS.primaryDark },
   superadmin: { bg: POS_COLORS.primarySoft, text: POS_COLORS.primaryDark },
 };
 
@@ -373,10 +368,10 @@ export default function PagosScreen({ userProfile, onClose }) {
 
       {/* ── CONTENIDO DEL TAB ──────────────────────────────────────────────── */}
       {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={POS_COLORS.primary} />
-          <Text style={styles.loadingText}>Cargando datos de pagos...</Text>
-        </View>
+        <PremiumLoader
+          message="Cargando pagos"
+          detail="Sincronizando movimientos y proveedores"
+        />
       ) : activeTab === 'salarios' ? (
         // ─── TAB SALARIOS ──────────────────────────────────────────────────
         <View style={styles.tabContent}>
@@ -1408,16 +1403,6 @@ const styles = StyleSheet.create({
   },
   deleteMiniBtnText: {
     fontSize: 14,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: POS_COLORS.muted,
-    marginTop: SPACING.sm,
-    fontSize: 13,
   },
   emptyContainer: {
     flex: 1,

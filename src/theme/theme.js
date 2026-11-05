@@ -17,7 +17,8 @@ export const COLORS = {
   secondaryBackground: '#ffffff',
 };
 
-// Paleta del punto de venta y login: neutros calmados y verde bosque de marca.
+// Paleta del punto de venta: neutros calmados y un único color de marca.
+// Las fotografías del menú aportan el resto del color a la interfaz.
 export const POS_COLORS = {
   canvas: '#F4F6F3',
   surface: '#F8FAF8',

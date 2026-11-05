@@ -5,7 +5,6 @@ import {
   View,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
   SafeAreaView,
   Platform,
   StatusBar,
@@ -16,19 +15,8 @@ import {
 } from 'react-native';
 import balanceService from '../../services/BalanceService';
 import productService from '../../services/ProductService';
-import authService from '../../services/AuthService';
-import {
-  COLORS,
-  POS_COLORS,
-  SPACING,
-  BORDER_RADIUS,
-  TYPOGRAPHY,
-} from '../../theme/theme';
-import { APP_ICONS } from '../../theme/assets';
-import PersonalScreen from './PersonalScreen';
-import PagosScreen from './PagosScreen';
-import FacturasScreen from './FacturasScreen';
-import MenuCmsScreen from './MenuCmsScreen';
+import PremiumLoader from '../../components/PremiumLoader';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');
 
@@ -306,11 +294,11 @@ export default function BalanceScreen({ userProfile, onClose }) {
           },
           ...(userProfile?.email
             ? [
-                {
-                  label: userProfile.email,
-                  action: null,
-                },
-              ]
+              {
+                label: userProfile.email,
+                action: null,
+              },
+            ]
             : []),
           {
             label: 'Cerrar Sesión',
@@ -421,10 +409,10 @@ export default function BalanceScreen({ userProfile, onClose }) {
       )}
 
       {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={POS_COLORS.primary} />
-          <Text style={styles.loadingText}>Consolidando balances contables...</Text>
-        </View>
+        <PremiumLoader
+          message="Calculando el balance"
+          detail="Consolidando ingresos, egresos y resultados"
+        />
       ) : (
         <ScrollView
           style={styles.contentScroll}
@@ -607,10 +595,10 @@ export default function BalanceScreen({ userProfile, onClose }) {
                           Ventas (
                           {kpis.ingresosTotales + kpis.totalEgresos > 0
                             ? Math.round(
-                                (kpis.ingresosTotales /
-                                  (kpis.ingresosTotales + kpis.totalEgresos)) *
-                                  100
-                              )
+                              (kpis.ingresosTotales /
+                                (kpis.ingresosTotales + kpis.totalEgresos)) *
+                              100
+                            )
                             : 0}
                           %)
                         </Text>
@@ -626,10 +614,10 @@ export default function BalanceScreen({ userProfile, onClose }) {
                           Egresos (
                           {kpis.ingresosTotales + kpis.totalEgresos > 0
                             ? Math.round(
-                                (kpis.totalEgresos /
-                                  (kpis.ingresosTotales + kpis.totalEgresos)) *
-                                  100
-                              )
+                              (kpis.totalEgresos /
+                                (kpis.ingresosTotales + kpis.totalEgresos)) *
+                              100
+                            )
                             : 0}
                           %)
                         </Text>
@@ -1248,17 +1236,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: SPACING.md,
   },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    ...TYPOGRAPHY.body,
-    color: POS_COLORS.muted,
-    marginTop: SPACING.md,
-  },
-
   // Grid de KPIs
   kpiGrid: {
     flexDirection: 'row',

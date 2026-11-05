@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   FlatList,
   TextInput,
-  ActivityIndicator,
   SafeAreaView,
   Platform,
   StatusBar,
@@ -15,13 +14,8 @@ import {
 import facturaService from '../../services/FacturaService';
 import productService from '../../services/ProductService';
 import TicketFacturaModal from '../../components/TicketFacturaModal';
-import {
-  COLORS,
-  POS_COLORS,
-  SPACING,
-  BORDER_RADIUS,
-  TYPOGRAPHY,
-} from '../../theme/theme';
+import PremiumLoader from '../../components/PremiumLoader';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');
 
@@ -65,8 +59,8 @@ export default function FacturasScreen({ userProfile, onClose }) {
     // Extraer ítems desde la relación con detalle_pedido
     const items = (factura.pedidos?.detalle_pedido || []).map((d) => ({
       cantidad: d.cantidad,
-      precio:   d.precio,
-      nombre:   d.productos?.nombre || 'Producto',
+      precio: d.precio,
+      nombre: d.productos?.nombre || 'Producto',
     }));
 
     setFacturaSeleccionada(factura);
@@ -182,10 +176,10 @@ export default function FacturasScreen({ userProfile, onClose }) {
 
       {/* ── LISTADO DE FACTURAS ────────────────────────────────────────────── */}
       {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={POS_COLORS.primary} />
-          <Text style={styles.loadingText}>Cargando comprobantes...</Text>
-        </View>
+        <PremiumLoader
+          message="Cargando comprobantes"
+          detail="Organizando facturas y tickets"
+        />
       ) : facturasFiltradas.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>🧾</Text>
@@ -460,16 +454,6 @@ const styles = StyleSheet.create({
     color: POS_COLORS.primaryDark,
     fontSize: 12,
     fontWeight: '800',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: POS_COLORS.muted,
-    marginTop: SPACING.sm,
-    fontSize: 13,
   },
   emptyContainer: {
     flex: 1,
