@@ -21,7 +21,13 @@ import pagoService, {
 import proveedorService, { CATEGORIAS_PROVEEDOR } from '../../services/ProveedorService';
 import empleadoService, { ROLES_DISPONIBLES } from '../../services/EmpleadoService';
 import productService from '../../services/ProductService';
-import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
+import {
+  COLORS,
+  POS_COLORS,
+  SPACING,
+  BORDER_RADIUS,
+  TYPOGRAPHY,
+} from '../../theme/theme';
 import PremiumLoader from '../../components/PremiumLoader';
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');

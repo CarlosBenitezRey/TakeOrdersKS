@@ -15,8 +15,20 @@ import {
 } from 'react-native';
 import balanceService from '../../services/BalanceService';
 import productService from '../../services/ProductService';
+import authService from '../../services/AuthService';
 import PremiumLoader from '../../components/PremiumLoader';
-import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
+import {
+  COLORS,
+  POS_COLORS,
+  SPACING,
+  BORDER_RADIUS,
+  TYPOGRAPHY,
+} from '../../theme/theme';
+import { APP_ICONS } from '../../theme/assets';
+import PersonalScreen from './PersonalScreen';
+import PagosScreen from './PagosScreen';
+import FacturasScreen from './FacturasScreen';
+import MenuCmsScreen from './MenuCmsScreen';
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');
 

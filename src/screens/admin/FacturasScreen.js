@@ -15,7 +15,13 @@ import facturaService from '../../services/FacturaService';
 import productService from '../../services/ProductService';
 import TicketFacturaModal from '../../components/TicketFacturaModal';
 import PremiumLoader from '../../components/PremiumLoader';
-import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
+import {
+  COLORS,
+  POS_COLORS,
+  SPACING,
+  BORDER_RADIUS,
+  TYPOGRAPHY,
+} from '../../theme/theme';
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');
 

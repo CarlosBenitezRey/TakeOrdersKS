@@ -5,7 +5,6 @@ import CajeroScreen from './src/screens/CajeroScreen';
 import CocinaScreen from './src/screens/CocinaScreen';
 import PremiumLoader from './src/components/PremiumLoader';
 import BalanceScreen from './src/screens/admin/BalanceScreen';
-import { COLORS } from './src/theme/theme';
 
 export default function App() {
   const [session, setSession] = useState(null);
