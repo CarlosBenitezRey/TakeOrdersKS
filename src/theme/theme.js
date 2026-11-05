@@ -17,6 +17,19 @@ export const COLORS = {
   secondaryBackground: '#ffffff',
 };
 
+// Paleta del punto de venta y login: neutros calmados y verde bosque de marca.
+export const POS_COLORS = {
+  canvas: '#F4F6F3',
+  surface: '#F8FAF8',
+  surfaceStrong: '#FFFFFF',
+  ink: '#1D2721',
+  muted: '#69746D',
+  line: '#DDE3DE',
+  primary: '#356A4B',
+  primaryDark: '#244B35',
+  primarySoft: '#E6F0E9',
+};
+
 export const SPACING = {
   xs: 4,
   sm: 8,

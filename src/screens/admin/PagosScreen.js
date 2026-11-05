@@ -21,16 +21,23 @@ import pagoService, {
 import proveedorService, { CATEGORIAS_PROVEEDOR } from '../../services/ProveedorService';
 import empleadoService, { ROLES_DISPONIBLES } from '../../services/EmpleadoService';
 import productService from '../../services/ProductService';
-import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
+import {
+  COLORS,
+  POS_COLORS,
+  SPACING,
+  BORDER_RADIUS,
+  TYPOGRAPHY,
+} from '../../theme/theme';
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');
 
 const ROL_COLORES = {
-  cajero:     { bg: 'rgba(248, 92, 92, 0.15)',   text: '#f85c5c' },
-  cocinero:   { bg: 'rgba(242, 169, 59, 0.15)',   text: '#F2A93B' },
-  mozo:       { bg: 'rgba(99, 179, 237, 0.15)',   text: '#63B3ED' },
-  supervisor: { bg: 'rgba(167, 139, 250, 0.15)',  text: '#A78BFA' },
-  admin:      { bg: 'rgba(16, 185, 129, 0.15)',   text: '#10B981' },
+  cajero:     { bg: POS_COLORS.primarySoft, text: POS_COLORS.primaryDark },
+  cocinero:   { bg: 'rgba(242, 169, 59, 0.16)', text: '#B87414' },
+  mozo:       { bg: 'rgba(90, 152, 112, 0.16)', text: POS_COLORS.primary },
+  supervisor: { bg: 'rgba(53, 106, 75, 0.14)', text: POS_COLORS.primaryDark },
+  admin:      { bg: POS_COLORS.primarySoft, text: POS_COLORS.primaryDark },
+  superadmin: { bg: POS_COLORS.primarySoft, text: POS_COLORS.primaryDark },
 };
 
 export default function PagosScreen({ userProfile, onClose }) {
@@ -247,7 +254,7 @@ export default function PagosScreen({ userProfile, onClose }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={POS_COLORS.canvas} />
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
       <View style={styles.header}>
@@ -367,7 +374,7 @@ export default function PagosScreen({ userProfile, onClose }) {
       {/* ── CONTENIDO DEL TAB ──────────────────────────────────────────────── */}
       {loading ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={POS_COLORS.primary} />
           <Text style={styles.loadingText}>Cargando datos de pagos...</Text>
         </View>
       ) : activeTab === 'salarios' ? (
@@ -1015,7 +1022,7 @@ export default function PagosScreen({ userProfile, onClose }) {
             <Text style={styles.confirmMessage}>
               ¿Estás seguro de que deseas eliminar permanentemente:
               {"\n\n"}
-              <Text style={{ color: COLORS.text, fontWeight: '700' }}>
+              <Text style={{ color: POS_COLORS.ink, fontWeight: '800' }}>
                 {itemAEliminar?.nombre}
               </Text>
               ? Esta acción no se puede deshacer.
@@ -1046,7 +1053,7 @@ export default function PagosScreen({ userProfile, onClose }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: POS_COLORS.canvas,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
@@ -1055,23 +1062,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
+    backgroundColor: POS_COLORS.surfaceStrong,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: POS_COLORS.line,
   },
   headerTitle: {
     ...TYPOGRAPHY.h2,
-    color: COLORS.primary,
+    fontSize: 18,
+    fontWeight: '900',
+    color: POS_COLORS.ink,
+    letterSpacing: -0.4,
   },
   headerSubtitle: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
+    fontWeight: '600',
   },
   closeBtn: {
-    padding: SPACING.xs,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: POS_COLORS.surface,
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   closeBtnText: {
-    color: COLORS.textMuted,
-    fontSize: 22,
+    color: POS_COLORS.muted,
+    fontSize: 16,
     fontWeight: '700',
   },
   statusBar: {
@@ -1080,20 +1099,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusBarSuccess: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: POS_COLORS.primarySoft,
+    borderBottomWidth: 1,
+    borderBottomColor: POS_COLORS.primary,
   },
   statusBarError: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.danger,
   },
   statusBarText: {
-    color: COLORS.textLight,
-    fontWeight: '600',
+    color: POS_COLORS.ink,
+    fontWeight: '700',
     fontSize: 13,
   },
   sucursalBar: {
-    backgroundColor: COLORS.card,
+    backgroundColor: POS_COLORS.surfaceStrong,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: POS_COLORS.line,
     paddingVertical: 6,
   },
   sucursalList: {
@@ -1103,50 +1126,50 @@ const styles = StyleSheet.create({
   sucursalPill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.cardElevated,
+    borderRadius: BORDER_RADIUS.round,
+    backgroundColor: POS_COLORS.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
   },
   sucursalPillActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primaryDark,
+    borderColor: POS_COLORS.primaryDark,
   },
   sucursalPillText: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     fontWeight: '600',
   },
   sucursalPillTextActive: {
-    color: COLORS.textLight,
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   tabsContainer: {
     flexDirection: 'row',
-    backgroundColor: COLORS.card,
-    padding: 6,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    padding: 5,
     marginHorizontal: SPACING.md,
     marginTop: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
   },
   tabButton: {
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: 10,
   },
   tabButtonActive: {
-    backgroundColor: COLORS.cardElevated,
+    backgroundColor: POS_COLORS.primarySoft,
   },
   tabButtonText: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     fontWeight: '600',
   },
   tabButtonTextActive: {
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
     fontWeight: '800',
   },
   kpiContainer: {
@@ -1157,27 +1180,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   kpiCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: POS_COLORS.surfaceStrong,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
+    borderLeftWidth: 4,
+    borderLeftColor: POS_COLORS.primary,
   },
   kpiLabel: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
   kpiValue: {
     fontSize: 22,
-    fontWeight: '800',
-    color: COLORS.text,
+    fontWeight: '900',
+    color: POS_COLORS.ink,
     marginVertical: 4,
   },
   kpiSub: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
   },
   tabContent: {
     flex: 1,
@@ -1192,30 +1217,31 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...TYPOGRAPHY.h3,
-    color: COLORS.text,
+    color: POS_COLORS.ink,
+    fontWeight: '800',
   },
   actionBtnPrimary: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primaryDark,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: 9,
+    borderRadius: 11,
   },
   actionBtnPrimaryText: {
-    color: COLORS.textLight,
+    color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 13,
   },
   actionBtnSecondary: {
-    backgroundColor: COLORS.cardElevated,
+    backgroundColor: POS_COLORS.surfaceStrong,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: 9,
+    borderRadius: 11,
   },
   actionBtnSecondaryText: {
-    color: COLORS.text,
-    fontWeight: '600',
+    color: POS_COLORS.ink,
+    fontWeight: '700',
     fontSize: 13,
   },
   filterGroup: {
@@ -1225,30 +1251,30 @@ const styles = StyleSheet.create({
   filterPill: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.sm,
-    backgroundColor: COLORS.card,
+    borderRadius: 9,
+    backgroundColor: POS_COLORS.surfaceStrong,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
   },
   filterPillActive: {
-    backgroundColor: COLORS.cardElevated,
-    borderColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primarySoft,
+    borderColor: POS_COLORS.primary,
   },
   filterPillText: {
     fontSize: 11,
-    color: COLORS.textMuted,
-    fontWeight: '600',
+    color: POS_COLORS.muted,
+    fontWeight: '700',
   },
   listContent: {
     paddingBottom: SPACING.xl,
     gap: SPACING.sm,
   },
   cardItem: {
-    backgroundColor: COLORS.card,
-    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    borderRadius: 16,
     padding: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -1259,19 +1285,19 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: COLORS.cardElevated,
+    backgroundColor: POS_COLORS.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
     fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.primary,
+    fontWeight: '800',
+    color: POS_COLORS.primaryDark,
   },
   itemTitle: {
     fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.text,
+    fontWeight: '800',
+    color: POS_COLORS.ink,
   },
   metaRow: {
     flexDirection: 'row',
@@ -1281,31 +1307,31 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
   },
   badge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   badgeText: {
     fontSize: 10,
     fontWeight: '800',
   },
   catBadge: {
-    backgroundColor: 'rgba(99, 179, 237, 0.15)',
+    backgroundColor: POS_COLORS.primarySoft,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   catBadgeText: {
-    color: '#63B3ED',
+    color: POS_COLORS.primaryDark,
     fontSize: 10,
     fontWeight: '700',
   },
   conceptoText: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     marginTop: 2,
   },
   amountBox: {
@@ -1313,69 +1339,69 @@ const styles = StyleSheet.create({
   },
   amountValue: {
     fontSize: 16,
-    fontWeight: '800',
-    color: COLORS.text,
+    fontWeight: '900',
+    color: POS_COLORS.ink,
   },
   amountSub: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     marginTop: 2,
   },
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 4,
+    borderRadius: 6,
     marginTop: 4,
   },
   statusBadgePaid: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: POS_COLORS.primarySoft,
   },
   statusBadgePending: {
-    backgroundColor: 'rgba(242, 169, 59, 0.15)',
+    backgroundColor: 'rgba(242, 169, 59, 0.16)',
   },
   statusBadgeText: {
     fontSize: 10,
     fontWeight: '800',
   },
   statusBadgeTextPaid: {
-    color: COLORS.success,
+    color: POS_COLORS.primaryDark,
   },
   statusBadgeTextPending: {
-    color: COLORS.secondary,
+    color: '#B87414',
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+    borderTopColor: POS_COLORS.line,
     paddingTop: SPACING.sm,
     marginTop: SPACING.sm,
   },
   footerInfo: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     flex: 1,
   },
   notesText: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     fontStyle: 'italic',
     maxWidth: 120,
     marginRight: 6,
   },
   payNowBtn: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: POS_COLORS.primarySoft,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.success,
+    borderColor: POS_COLORS.primary,
   },
   payNowBtnText: {
-    color: COLORS.success,
+    color: POS_COLORS.primaryDark,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   deleteMiniBtn: {
     padding: 4,
@@ -1389,7 +1415,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     marginTop: SPACING.sm,
     fontSize: 13,
   },
@@ -1405,11 +1431,12 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...TYPOGRAPHY.h3,
-    color: COLORS.text,
+    color: POS_COLORS.ink,
+    fontWeight: '800',
   },
   emptySub: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     textAlign: 'center',
     marginTop: 4,
     maxWidth: 260,
@@ -1418,17 +1445,17 @@ const styles = StyleSheet.create({
   // ─── MODALES ───────────────────────────────────────────────────────────────
   modalOverlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay,
+    backgroundColor: 'rgba(7, 19, 13, 0.76)',
     justifyContent: 'flex-end',
   },
   modalContainer: {
-    backgroundColor: COLORS.card,
-    borderTopLeftRadius: BORDER_RADIUS.xl,
-    borderTopRightRadius: BORDER_RADIUS.xl,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: SPACING.lg,
     maxHeight: '90%',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1438,11 +1465,13 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     ...TYPOGRAPHY.h2,
-    color: COLORS.primary,
+    color: POS_COLORS.ink,
+    fontWeight: '900',
+    fontSize: 20,
   },
   modalCloseText: {
-    color: COLORS.textMuted,
-    fontSize: 22,
+    color: POS_COLORS.muted,
+    fontSize: 20,
     fontWeight: '700',
   },
   modalScroll: {
@@ -1450,19 +1479,21 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.text,
-    fontWeight: '700',
+    color: POS_COLORS.muted,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginTop: SPACING.sm,
     marginBottom: 6,
   },
   fieldInput: {
     height: 46,
-    backgroundColor: COLORS.background,
-    borderColor: COLORS.border,
+    backgroundColor: POS_COLORS.surface,
+    borderColor: POS_COLORS.line,
     borderWidth: 1,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: 11,
     paddingHorizontal: SPACING.md,
-    color: COLORS.text,
+    color: POS_COLORS.ink,
     fontSize: 14,
   },
   selectorGrid: {
@@ -1474,72 +1505,80 @@ const styles = StyleSheet.create({
   selectorPill: {
     paddingVertical: 7,
     paddingHorizontal: 12,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.background,
+    borderRadius: 10,
+    backgroundColor: POS_COLORS.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
   },
   selectorPillSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primaryDark,
+    borderColor: POS_COLORS.primaryDark,
   },
   selectorPillText: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     fontWeight: '600',
   },
   selectorPillTextSelected: {
-    color: COLORS.textLight,
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
   warningText: {
-    color: COLORS.secondary,
+    color: '#B87414',
     fontSize: 12,
     marginBottom: SPACING.sm,
     lineHeight: 16,
   },
   submitButton: {
-    backgroundColor: COLORS.primary,
-    height: 48,
-    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: POS_COLORS.primaryDark,
+    height: 50,
+    borderRadius: 13,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: SPACING.lg,
     marginBottom: SPACING.md,
+    shadowColor: POS_COLORS.primaryDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   submitButtonDisabled: {
     opacity: 0.5,
   },
   submitButtonText: {
     ...TYPOGRAPHY.button,
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
 
   // Confirm delete
   confirmOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(7, 19, 13, 0.76)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
   },
   confirmCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    borderRadius: 22,
     padding: SPACING.lg,
     width: '100%',
     maxWidth: 380,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
   },
   confirmTitle: {
     ...TYPOGRAPHY.h3,
-    color: COLORS.danger,
+    color: POS_COLORS.ink,
+    fontWeight: '800',
     marginBottom: SPACING.sm,
     textAlign: 'center',
   },
   confirmMessage: {
     ...TYPOGRAPHY.body,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     textAlign: 'center',
     marginBottom: SPACING.lg,
     lineHeight: 20,
@@ -1551,23 +1590,25 @@ const styles = StyleSheet.create({
   },
   confirmBtn: {
     flex: 1,
-    height: 44,
-    borderRadius: BORDER_RADIUS.md,
+    height: 46,
+    borderRadius: 11,
     justifyContent: 'center',
     alignItems: 'center',
   },
   confirmBtnCancel: {
-    backgroundColor: COLORS.cardElevated,
+    backgroundColor: POS_COLORS.surface,
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
   },
   confirmBtnCancelText: {
-    color: COLORS.text,
+    color: POS_COLORS.muted,
     fontWeight: '700',
   },
   confirmBtnDelete: {
     backgroundColor: COLORS.danger,
   },
   confirmBtnDeleteText: {
-    color: COLORS.textLight,
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
 });

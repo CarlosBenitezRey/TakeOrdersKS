@@ -17,7 +17,13 @@ import {
 import balanceService from '../../services/BalanceService';
 import productService from '../../services/ProductService';
 import authService from '../../services/AuthService';
-import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
+import {
+  COLORS,
+  POS_COLORS,
+  SPACING,
+  BORDER_RADIUS,
+  TYPOGRAPHY,
+} from '../../theme/theme';
 import { APP_ICONS } from '../../theme/assets';
 import PersonalScreen from './PersonalScreen';
 import PagosScreen from './PagosScreen';
@@ -160,7 +166,7 @@ export default function BalanceScreen({ userProfile, onClose }) {
     {
       id: 'finanzas',
       label: 'Finanzas',
-      icon: APP_ICONS.finanzas,
+      icon: APP_ICONS.statistics,
       submenu: {
         mainTitle: 'Balance y Finanzas',
         mainAction: () => {
@@ -195,7 +201,7 @@ export default function BalanceScreen({ userProfile, onClose }) {
     {
       id: 'personal',
       label: 'Personal',
-      icon: APP_ICONS.personal,
+      icon: APP_ICONS.userDefault,
       submenu: {
         mainTitle: 'Gestión de Personal',
         mainAction: () => {
@@ -226,7 +232,7 @@ export default function BalanceScreen({ userProfile, onClose }) {
     {
       id: 'compras',
       label: 'Compras',
-      icon: APP_ICONS.compras,
+      icon: APP_ICONS.statistics,
       submenu: {
         mainTitle: 'Pagos y Proveedores',
         mainAction: () => {
@@ -257,7 +263,7 @@ export default function BalanceScreen({ userProfile, onClose }) {
     {
       id: 'catalogo',
       label: 'Catálogo',
-      icon: APP_ICONS.catalogo,
+      icon: APP_ICONS.hamburguesa || APP_ICONS.todos,
       submenu: {
         mainTitle: 'CMS Menú y Precios',
         mainAction: () => {
@@ -288,7 +294,7 @@ export default function BalanceScreen({ userProfile, onClose }) {
     {
       id: 'cuenta',
       label: 'Cuenta',
-      icon: APP_ICONS.cuenta,
+      icon: APP_ICONS.admin,
       submenu: {
         mainTitle: userProfile?.nombre || 'Mi Perfil',
         mainSubtitle: userProfile?.rol?.toUpperCase() || 'ADMIN',
@@ -324,7 +330,7 @@ export default function BalanceScreen({ userProfile, onClose }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={POS_COLORS.canvas} />
 
       {/* ─── Encabezado ──────────────────────────────────────────────────────── */}
       <View style={styles.header}>
@@ -416,7 +422,7 @@ export default function BalanceScreen({ userProfile, onClose }) {
 
       {loading ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={POS_COLORS.primary} />
           <Text style={styles.loadingText}>Consolidando balances contables...</Text>
         </View>
       ) : (
@@ -912,7 +918,7 @@ export default function BalanceScreen({ userProfile, onClose }) {
             style={[
               StyleSheet.absoluteFill,
               {
-                backgroundColor: 'rgba(15, 23, 42, 0.55)',
+                backgroundColor: 'rgba(7, 19, 13, 0.55)',
                 opacity: drawerBackdropAnim,
               },
             ]}
@@ -952,7 +958,10 @@ export default function BalanceScreen({ userProfile, onClose }) {
                       >
                         <Image
                           source={tab.icon}
-                          style={styles.railTabIcon}
+                          style={[
+                            styles.railTabIcon,
+                            { tintColor: isSelected ? POS_COLORS.primaryDark : POS_COLORS.muted },
+                          ]}
                           resizeMode="contain"
                         />
                         <Text
@@ -1107,7 +1116,7 @@ export default function BalanceScreen({ userProfile, onClose }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: POS_COLORS.canvas,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
@@ -1116,9 +1125,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: POS_COLORS.surfaceStrong,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(92, 139, 248, 0.15)',
+    borderBottomColor: POS_COLORS.line,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -1128,25 +1137,27 @@ const styles = StyleSheet.create({
   headerTitle: {
     ...TYPOGRAPHY.h2,
     fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontWeight: '900',
+    color: POS_COLORS.ink,
+    letterSpacing: -0.4,
   },
   headerSubtitle: {
     ...TYPOGRAPHY.caption,
-    color: '#64748B',
+    color: POS_COLORS.muted,
+    fontWeight: '600',
   },
   closeButton: {
     paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    backgroundColor: '#F1F5F9',
-    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: 7,
+    backgroundColor: POS_COLORS.surface,
+    borderRadius: 11,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.15)',
+    borderColor: POS_COLORS.line,
   },
   closeButtonText: {
     ...TYPOGRAPHY.button,
     fontSize: 13,
-    color: '#475569',
+    color: POS_COLORS.muted,
     fontWeight: '700',
   },
   logoutButton: {
@@ -1162,9 +1173,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: POS_COLORS.surfaceStrong,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(92, 139, 248, 0.1)',
+    borderBottomColor: POS_COLORS.line,
     gap: 8,
   },
   periodoChip: {
@@ -1172,23 +1183,23 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: POS_COLORS.surface,
+    borderRadius: 9,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.12)',
+    borderColor: POS_COLORS.line,
   },
   periodoChipActive: {
-    backgroundColor: 'rgba(92, 139, 248, 0.15)',
-    borderColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primarySoft,
+    borderColor: POS_COLORS.primary,
   },
   periodoChipText: {
     ...TYPOGRAPHY.caption,
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   periodoChipTextActive: {
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
     fontWeight: '800',
   },
 
@@ -1198,33 +1209,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs + 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: POS_COLORS.surfaceStrong,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(92, 139, 248, 0.1)',
+    borderBottomColor: POS_COLORS.line,
   },
   sucursalFilterLabel: {
     ...TYPOGRAPHY.caption,
-    color: '#64748B',
+    color: POS_COLORS.muted,
     fontWeight: '700',
     marginRight: SPACING.sm,
   },
   sucursalChip: {
     paddingHorizontal: SPACING.md,
     paddingVertical: 5,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.round,
+    backgroundColor: POS_COLORS.surface,
     marginRight: 6,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.12)',
+    borderColor: POS_COLORS.line,
   },
   sucursalChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primaryDark,
+    borderColor: POS_COLORS.primaryDark,
   },
   sucursalChipText: {
     ...TYPOGRAPHY.caption,
     fontSize: 11,
-    color: '#64748B',
+    color: POS_COLORS.muted,
     fontWeight: '600',
   },
   sucursalChipTextActive: {
@@ -1244,7 +1255,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...TYPOGRAPHY.body,
-    color: '#64748B',
+    color: POS_COLORS.muted,
     marginTop: SPACING.md,
   },
 
@@ -1257,11 +1268,11 @@ const styles = StyleSheet.create({
   },
   kpiCard: {
     width: '48.5%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: POS_COLORS.surfaceStrong,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.12)',
+    borderColor: POS_COLORS.line,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.04,
@@ -1270,7 +1281,7 @@ const styles = StyleSheet.create({
   },
   kpiCardIngresos: {
     borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
+    borderLeftColor: POS_COLORS.primary,
   },
   kpiCardEgresos: {
     borderLeftWidth: 4,
@@ -1278,7 +1289,7 @@ const styles = StyleSheet.create({
   },
   kpiCardUtilidadPos: {
     borderLeftWidth: 4,
-    borderLeftColor: '#34D399',
+    borderLeftColor: POS_COLORS.primary,
   },
   kpiCardUtilidadNeg: {
     borderLeftWidth: 4,
@@ -1298,7 +1309,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     fontSize: 10,
     fontWeight: '800',
-    color: '#64748B',
+    color: POS_COLORS.muted,
     letterSpacing: 0.5,
   },
   kpiIcon: {
@@ -1313,15 +1324,15 @@ const styles = StyleSheet.create({
   kpiSubtext: {
     ...TYPOGRAPHY.caption,
     fontSize: 10,
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   estadoBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.xs,
+    borderRadius: 6,
   },
   estadoBadgePos: {
-    backgroundColor: 'rgba(52, 211, 153, 0.15)',
+    backgroundColor: POS_COLORS.primarySoft,
   },
   estadoBadgeNeg: {
     backgroundColor: 'rgba(248, 113, 113, 0.15)',
@@ -1331,7 +1342,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   estadoBadgeTextPos: {
-    color: '#34D399',
+    color: POS_COLORS.primaryDark,
   },
   estadoBadgeTextNeg: {
     color: '#F87171',
@@ -1340,12 +1351,12 @@ const styles = StyleSheet.create({
   // Pestañas
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    borderRadius: 14,
     padding: 4,
     marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.15)',
+    borderColor: POS_COLORS.line,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
@@ -1356,19 +1367,19 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: 10,
   },
   tabButtonActive: {
-    backgroundColor: 'rgba(92, 139, 248, 0.15)',
+    backgroundColor: POS_COLORS.primarySoft,
   },
   tabButtonText: {
     ...TYPOGRAPHY.caption,
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   tabButtonTextActive: {
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
     fontWeight: '800',
   },
 
@@ -1377,11 +1388,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: POS_COLORS.surfaceStrong,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.12)',
+    borderColor: POS_COLORS.line,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.04,
@@ -1392,7 +1403,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.subtitle,
     fontSize: 14,
     fontWeight: '800',
-    color: '#0F172A',
+    color: POS_COLORS.ink,
     marginBottom: SPACING.sm,
   },
   cardHeaderWithBadge: {
@@ -1401,19 +1412,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cajaBadge: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: POS_COLORS.primarySoft,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.xs,
+    borderRadius: 6,
   },
   cajaBadgeText: {
-    color: '#10B981',
+    color: POS_COLORS.primaryDark,
     fontSize: 10,
     fontWeight: '800',
   },
   cajaSubtext: {
     ...TYPOGRAPHY.caption,
-    color: '#64748B',
+    color: POS_COLORS.muted,
     marginBottom: SPACING.md,
   },
 
@@ -1426,10 +1437,10 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
     overflow: 'hidden',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: POS_COLORS.surface,
   },
   barraProporcionIngresos: {
-    backgroundColor: '#10B981',
+    backgroundColor: POS_COLORS.primary,
   },
   barraProporcionEgresos: {
     backgroundColor: '#EF4444',
@@ -1451,7 +1462,7 @@ const styles = StyleSheet.create({
   },
   legendText: {
     ...TYPOGRAPHY.caption,
-    color: '#64748B',
+    color: POS_COLORS.muted,
     fontSize: 11,
   },
 
@@ -1463,21 +1474,21 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   desgloseRowDestacado: {
-    backgroundColor: 'rgba(92, 139, 248, 0.08)',
+    backgroundColor: POS_COLORS.primarySoft,
     padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: 10,
     marginTop: 4,
   },
   desgloseLabel: {
     ...TYPOGRAPHY.body,
     fontSize: 13,
-    color: '#0F172A',
+    color: POS_COLORS.ink,
     fontWeight: '600',
   },
   desgloseSub: {
     ...TYPOGRAPHY.caption,
     fontSize: 10,
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   desgloseMonto: {
     ...TYPOGRAPHY.body,
@@ -1486,19 +1497,19 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(92, 139, 248, 0.12)',
+    backgroundColor: POS_COLORS.line,
     marginVertical: 4,
   },
   dividerTotal: {
     height: 1.5,
-    backgroundColor: 'rgba(92, 139, 248, 0.25)',
+    backgroundColor: POS_COLORS.line,
     marginVertical: 6,
   },
   utilidadNetaTitulo: {
     ...TYPOGRAPHY.subtitle,
     fontSize: 13,
     fontWeight: '800',
-    color: '#0F172A',
+    color: POS_COLORS.ink,
   },
   utilidadNetaValor: {
     ...TYPOGRAPHY.h2,
@@ -1513,7 +1524,7 @@ const styles = StyleSheet.create({
     borderColor: '#F59E0B',
     borderWidth: 1,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: 16,
     gap: SPACING.sm,
   },
   alertaDeudaIcon: {
@@ -1529,36 +1540,36 @@ const styles = StyleSheet.create({
   alertaDeudaTexto: {
     ...TYPOGRAPHY.caption,
     fontSize: 11,
-    color: '#475569',
+    color: POS_COLORS.muted,
     lineHeight: 16,
   },
 
   // Arqueo Caja
   cardCajaFisica: {
     borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
+    borderLeftColor: POS_COLORS.primary,
   },
   saldoCajaBox: {
-    backgroundColor: 'rgba(16, 185, 129, 0.06)',
+    backgroundColor: POS_COLORS.primarySoft,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: 12,
     alignItems: 'center',
     marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.25)',
+    borderColor: POS_COLORS.line,
   },
   saldoCajaLabel: {
     ...TYPOGRAPHY.caption,
     fontSize: 10,
     fontWeight: '800',
-    color: '#10B981',
+    color: POS_COLORS.primaryDark,
     letterSpacing: 0.5,
   },
   saldoCajaMonto: {
     ...TYPOGRAPHY.h1,
     fontSize: 22,
     fontWeight: '900',
-    color: '#10B981',
+    color: POS_COLORS.primaryDark,
     marginTop: 4,
   },
   arqueoItemRow: {
@@ -1569,7 +1580,7 @@ const styles = StyleSheet.create({
   arqueoItemLabel: {
     ...TYPOGRAPHY.body,
     fontSize: 12,
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   arqueoItemMonto: {
     ...TYPOGRAPHY.body,
@@ -1583,18 +1594,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(92, 139, 248, 0.08)',
+    borderBottomColor: POS_COLORS.line,
   },
   topProdRankBadge: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(92, 139, 248, 0.15)',
+    backgroundColor: POS_COLORS.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   topProdRankText: {
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
     fontSize: 11,
     fontWeight: '800',
   },
@@ -1602,23 +1613,23 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.body,
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
+    color: POS_COLORS.ink,
   },
   topProdSub: {
     ...TYPOGRAPHY.caption,
     fontSize: 10,
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   topProdQtyBadge: {
-    backgroundColor: 'rgba(92, 139, 248, 0.1)',
+    backgroundColor: POS_COLORS.primarySoft,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.xs,
+    borderRadius: 6,
   },
   topProdQtyText: {
     ...TYPOGRAPHY.caption,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
   },
 
   // Transacciones
@@ -1628,45 +1639,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(92, 139, 248, 0.08)',
+    borderBottomColor: POS_COLORS.line,
   },
   transaccionId: {
     ...TYPOGRAPHY.caption,
     fontWeight: '800',
-    color: '#0F172A',
+    color: POS_COLORS.ink,
   },
   transaccionSub: {
     ...TYPOGRAPHY.caption,
     fontSize: 10,
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   transaccionMonto: {
     ...TYPOGRAPHY.body,
     fontWeight: '800',
-    color: '#0F172A',
+    color: POS_COLORS.ink,
   },
   transaccionMetodo: {
     ...TYPOGRAPHY.caption,
     fontSize: 9,
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   emptyText: {
     ...TYPOGRAPHY.caption,
-    color: '#64748B',
+    color: POS_COLORS.muted,
     textAlign: 'center',
     paddingVertical: SPACING.md,
   },
   menuButton: {
     paddingVertical: SPACING.xs + 2,
     paddingHorizontal: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.primary,
+    borderRadius: 11,
+    backgroundColor: POS_COLORS.primaryDark,
     justifyContent: 'center',
     alignItems: 'center',
     height: 40,
   },
   menuButtonText: {
-    color: COLORS.text,
+    color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 14,
   },
@@ -1680,7 +1691,7 @@ const styles = StyleSheet.create({
   },
   dualDrawerContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: POS_COLORS.surfaceStrong,
     width: 380,
     maxWidth: '92%',
     height: '100%',
@@ -1690,7 +1701,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 0,
     overflow: 'hidden',
     borderLeftWidth: 1,
-    borderLeftColor: 'rgba(92, 139, 248, 0.2)',
+    borderLeftColor: POS_COLORS.line,
     shadowColor: '#000',
     shadowOffset: { width: -4, height: 0 },
     shadowOpacity: 0.15,
@@ -1704,9 +1715,9 @@ const styles = StyleSheet.create({
   },
   railColumn: {
     width: 96,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: POS_COLORS.canvas,
     borderRightWidth: 1,
-    borderRightColor: 'rgba(92, 139, 248, 0.15)',
+    borderRightColor: POS_COLORS.line,
     paddingTop: Platform.OS === 'ios' ? 50 : 20,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
   },
@@ -1724,9 +1735,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   railTabItemSelected: {
-    backgroundColor: 'rgba(92, 139, 248, 0.15)',
+    backgroundColor: POS_COLORS.primarySoft,
     borderWidth: 1.5,
-    borderColor: COLORS.primary,
+    borderColor: POS_COLORS.primary,
   },
   railTabIcon: {
     width: 24,
@@ -1736,16 +1747,16 @@ const styles = StyleSheet.create({
   railTabLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: 'rgba(0, 0, 0, 0.65)',
+    color: POS_COLORS.muted,
     textAlign: 'center',
   },
   railTabLabelSelected: {
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
     fontWeight: '800',
   },
   submenuColumn: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: POS_COLORS.surfaceStrong,
     paddingHorizontal: 18,
     paddingTop: Platform.OS === 'ios' ? 50 : 20,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
@@ -1758,15 +1769,15 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: POS_COLORS.canvas,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.15)',
+    borderColor: POS_COLORS.line,
   },
   submenuCloseText: {
-    color: '#475569',
+    color: POS_COLORS.muted,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -1775,12 +1786,12 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   submenuMainPill: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primaryDark,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginBottom: 16,
-    shadowColor: COLORS.primary,
+    shadowColor: POS_COLORS.primaryDark,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -1804,17 +1815,17 @@ const styles = StyleSheet.create({
   submenuLinkItem: {
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: '#F8FAFC',
+    borderRadius: 11,
+    backgroundColor: POS_COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.1)',
+    borderColor: POS_COLORS.line,
   },
   submenuLinkItemDanger: {
     backgroundColor: 'rgba(239, 68, 68, 0.06)',
     borderColor: 'rgba(239, 68, 68, 0.25)',
   },
   submenuLinkText: {
-    color: '#0F172A',
+    color: POS_COLORS.ink,
     fontSize: 13.5,
     fontWeight: '600',
   },
