@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,11 +8,27 @@ import {
   SafeAreaView,
   Platform,
   StatusBar,
+  Modal,
+  Image,
+  Animated,
+  Easing,
 } from 'react-native';
 import balanceService from '../../services/BalanceService';
 import productService from '../../services/ProductService';
+import authService from '../../services/AuthService';
 import PremiumLoader from '../../components/PremiumLoader';
-import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
+import {
+  COLORS,
+  POS_COLORS,
+  SPACING,
+  BORDER_RADIUS,
+  TYPOGRAPHY,
+} from '../../theme/theme';
+import { APP_ICONS } from '../../theme/assets';
+import PersonalScreen from './PersonalScreen';
+import PagosScreen from './PagosScreen';
+import FacturasScreen from './FacturasScreen';
+import MenuCmsScreen from './MenuCmsScreen';
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');
 
@@ -33,6 +49,57 @@ export default function BalanceScreen({ userProfile, onClose }) {
   );
   const [loading, setLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState({ text: '', type: '' });
+
+  // Estados del Menú Lateral Dual (para el rol Admin) y Modales Administrativos
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+  const [drawerActiveTab, setDrawerActiveTab] = useState('finanzas');
+  const [isPersonalVisible, setIsPersonalVisible] = useState(false);
+  const [isPagosVisible, setIsPagosVisible] = useState(false);
+  const [isFacturasVisible, setIsFacturasVisible] = useState(false);
+  const [isCmsVisible, setIsCmsVisible] = useState(false);
+
+  const drawerSlideAnim = useRef(new Animated.Value(500)).current;
+  const drawerBackdropAnim = useRef(new Animated.Value(0)).current;
+
+  const openDrawer = () => {
+    drawerSlideAnim.setValue(500);
+    drawerBackdropAnim.setValue(0);
+    setIsDrawerVisible(true);
+    Animated.parallel([
+      Animated.timing(drawerSlideAnim, {
+        toValue: 0,
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(drawerBackdropAnim, {
+        toValue: 1,
+        duration: 240,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const closeDrawer = (callback) => {
+    Animated.parallel([
+      Animated.timing(drawerSlideAnim, {
+        toValue: 500,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(drawerBackdropAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setIsDrawerVisible(false);
+      if (typeof callback === 'function') {
+        callback();
+      }
+    });
+  };
 
   const esAdminGlobal = !userProfile?.sucursal_id;
 
@@ -94,21 +161,196 @@ export default function BalanceScreen({ userProfile, onClose }) {
 
   const esGanancia = kpis.utilidadNeta >= 0;
 
+  // Pestañas del Menú Lateral Dual para rol Admin (todas las opciones excepto Cocina y Cajero)
+  const drawerTabs = [
+    {
+      id: 'finanzas',
+      label: 'Finanzas',
+      icon: APP_ICONS.statistics,
+      submenu: {
+        mainTitle: 'Balance y Finanzas',
+        mainAction: () => {
+          setActiveTab('estado_resultados');
+          closeDrawer();
+        },
+        items: [
+          {
+            label: 'Métricas de Ventas',
+            action: () => {
+              setActiveTab('estado_resultados');
+              closeDrawer();
+            },
+          },
+          {
+            label: 'Arqueo de Caja',
+            action: () => {
+              setActiveTab('arqueo_caja');
+              closeDrawer();
+            },
+          },
+          {
+            label: 'Desglose de Cobros',
+            action: () => {
+              setActiveTab('ventas_productos');
+              closeDrawer();
+            },
+          },
+        ],
+      },
+    },
+    {
+      id: 'personal',
+      label: 'Personal',
+      icon: APP_ICONS.userDefault,
+      submenu: {
+        mainTitle: 'Gestión de Personal',
+        mainAction: () => {
+          closeDrawer(() => setIsPersonalVisible(true));
+        },
+        items: [
+          {
+            label: 'Plantel de Empleados',
+            action: () => {
+              closeDrawer(() => setIsPersonalVisible(true));
+            },
+          },
+          {
+            label: 'Registrar Empleado',
+            action: () => {
+              closeDrawer(() => setIsPersonalVisible(true));
+            },
+          },
+          {
+            label: 'Control de Salarios',
+            action: () => {
+              closeDrawer(() => setIsPersonalVisible(true));
+            },
+          },
+        ],
+      },
+    },
+    {
+      id: 'compras',
+      label: 'Compras',
+      icon: APP_ICONS.statistics,
+      submenu: {
+        mainTitle: 'Pagos y Proveedores',
+        mainAction: () => {
+          closeDrawer(() => setIsPagosVisible(true));
+        },
+        items: [
+          {
+            label: 'Facturas y Comprobantes',
+            action: () => {
+              closeDrawer(() => setIsFacturasVisible(true));
+            },
+          },
+          {
+            label: 'Directorio de Proveedores',
+            action: () => {
+              closeDrawer(() => setIsPagosVisible(true));
+            },
+          },
+          {
+            label: 'Registro de Gastos',
+            action: () => {
+              closeDrawer(() => setIsPagosVisible(true));
+            },
+          },
+        ],
+      },
+    },
+    {
+      id: 'catalogo',
+      label: 'Catálogo',
+      icon: APP_ICONS.hamburguesa || APP_ICONS.todos,
+      submenu: {
+        mainTitle: 'CMS Menú y Precios',
+        mainAction: () => {
+          closeDrawer(() => setIsCmsVisible(true));
+        },
+        items: [
+          {
+            label: 'Modificar Platos y Precios',
+            action: () => {
+              closeDrawer(() => setIsCmsVisible(true));
+            },
+          },
+          {
+            label: 'Administrar Categorías',
+            action: () => {
+              closeDrawer(() => setIsCmsVisible(true));
+            },
+          },
+          {
+            label: 'Control de Disponibilidad',
+            action: () => {
+              closeDrawer(() => setIsCmsVisible(true));
+            },
+          },
+        ],
+      },
+    },
+    {
+      id: 'cuenta',
+      label: 'Cuenta',
+      icon: APP_ICONS.admin,
+      submenu: {
+        mainTitle: userProfile?.nombre || 'Mi Perfil',
+        mainSubtitle: userProfile?.rol?.toUpperCase() || 'ADMIN',
+        mainAction: null,
+        items: [
+          {
+            label: `Sucursal: ${userProfile?.sucursales?.nombre || 'Global / Central'}`,
+            action: null,
+          },
+          ...(userProfile?.email
+            ? [
+              {
+                label: userProfile.email,
+                action: null,
+              },
+            ]
+            : []),
+          {
+            label: 'Cerrar Sesión',
+            danger: true,
+            action: () => {
+              closeDrawer(() => authService.logout());
+            },
+          },
+        ],
+      },
+    },
+  ];
+
+  const currentDrawerTab =
+    drawerTabs.find((t) => t.id === drawerActiveTab) || drawerTabs[0];
+  const currentSubmenu = currentDrawerTab.submenu;
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={POS_COLORS.canvas} />
 
       {/* ─── Encabezado ──────────────────────────────────────────────────────── */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Balance & Finanzas</Text>
           <Text style={styles.headerSubtitle}>
-            Control integral de ingresos, egresos y utilidades
+            {onClose
+              ? 'Control integral de ingresos, egresos y utilidades'
+              : `${userProfile?.nombre || 'Admin'} (${userProfile?.rol || 'admin'})`}
           </Text>
         </View>
-        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-          <Text style={styles.closeButtonText}>✕ Cerrar</Text>
-        </TouchableOpacity>
+        {onClose ? (
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Text style={styles.closeButtonText}>✕ Cerrar</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.menuButton} onPress={openDrawer}>
+            <Text style={styles.menuButtonText}>☰ Menú</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* ─── Selector de Período ─────────────────────────────────────────────── */}
@@ -365,10 +607,10 @@ export default function BalanceScreen({ userProfile, onClose }) {
                           Ventas (
                           {kpis.ingresosTotales + kpis.totalEgresos > 0
                             ? Math.round(
-                                (kpis.ingresosTotales /
-                                  (kpis.ingresosTotales + kpis.totalEgresos)) *
-                                  100
-                              )
+                              (kpis.ingresosTotales /
+                                (kpis.ingresosTotales + kpis.totalEgresos)) *
+                              100
+                            )
                             : 0}
                           %)
                         </Text>
@@ -384,10 +626,10 @@ export default function BalanceScreen({ userProfile, onClose }) {
                           Egresos (
                           {kpis.ingresosTotales + kpis.totalEgresos > 0
                             ? Math.round(
-                                (kpis.totalEgresos /
-                                  (kpis.ingresosTotales + kpis.totalEgresos)) *
-                                  100
-                              )
+                              (kpis.totalEgresos /
+                                (kpis.ingresosTotales + kpis.totalEgresos)) *
+                              100
+                            )
                             : 0}
                           %)
                         </Text>
@@ -662,6 +904,211 @@ export default function BalanceScreen({ userProfile, onClose }) {
           )}
         </ScrollView>
       )}
+
+      {/* ─── Menú Lateral de 2 Columnas (para rol Admin) ─────────────────────── */}
+      <Modal
+        visible={isDrawerVisible}
+        animationType="none"
+        transparent={true}
+        onRequestClose={() => closeDrawer()}
+      >
+        <View style={styles.drawerOverlay}>
+          {/* Fondo oscuro animado */}
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor: 'rgba(7, 19, 13, 0.55)',
+                opacity: drawerBackdropAnim,
+              },
+            ]}
+          />
+
+          {/* Área de clic fuera del cajón para cerrarlo */}
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={1}
+            onPress={() => closeDrawer()}
+          />
+
+          <Animated.View
+            style={[
+              styles.dualDrawerContainer,
+              { transform: [{ translateX: drawerSlideAnim }] },
+            ]}
+          >
+            <View style={styles.dualDrawerInner}>
+              {/* ── COLUMNA 1: Rail Izquierdo de Categorías ── */}
+              <View style={styles.railColumn}>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.railScrollContent}
+                >
+                  {drawerTabs.map((tab) => {
+                    const isSelected = drawerActiveTab === tab.id;
+                    return (
+                      <TouchableOpacity
+                        key={tab.id}
+                        style={[
+                          styles.railTabItem,
+                          isSelected && styles.railTabItemSelected,
+                        ]}
+                        onPress={() => setDrawerActiveTab(tab.id)}
+                        activeOpacity={0.75}
+                      >
+                        <Image
+                          source={tab.icon}
+                          style={[
+                            styles.railTabIcon,
+                            { tintColor: isSelected ? POS_COLORS.primaryDark : POS_COLORS.muted },
+                          ]}
+                          resizeMode="contain"
+                        />
+                        <Text
+                          style={[
+                            styles.railTabLabel,
+                            isSelected && styles.railTabLabelSelected,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {tab.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
+              {/* ── COLUMNA 2: Submenú Derecho Contextual ── */}
+              <View style={styles.submenuColumn}>
+                <TouchableOpacity
+                  style={styles.submenuCloseBtn}
+                  onPress={() => closeDrawer()}
+                >
+                  <Text style={styles.submenuCloseText}>✕</Text>
+                </TouchableOpacity>
+
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.submenuScrollContent}
+                >
+                  {/* Botón / Píldora Destacada Principal */}
+                  <TouchableOpacity
+                    style={styles.submenuMainPill}
+                    activeOpacity={currentSubmenu.mainAction ? 0.8 : 1}
+                    onPress={() => {
+                      if (currentSubmenu.mainAction) {
+                        currentSubmenu.mainAction();
+                      }
+                    }}
+                  >
+                    <Text style={styles.submenuMainPillText}>
+                      {currentSubmenu.mainTitle}
+                    </Text>
+                    {currentSubmenu.mainSubtitle ? (
+                      <Text style={styles.submenuMainPillSub}>
+                        {currentSubmenu.mainSubtitle}
+                      </Text>
+                    ) : null}
+                  </TouchableOpacity>
+
+                  {/* Lista de Sub-ítems */}
+                  <View style={styles.submenuLinksList}>
+                    {currentSubmenu.items.map((item, idx) => (
+                      <TouchableOpacity
+                        key={idx}
+                        style={[
+                          styles.submenuLinkItem,
+                          item.danger && styles.submenuLinkItemDanger,
+                        ]}
+                        activeOpacity={item.action ? 0.65 : 1}
+                        onPress={() => {
+                          if (item.action) item.action();
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.submenuLinkText,
+                            item.danger && styles.submenuLinkDanger,
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      {/* Modal de Gestión de Personal y Salarios */}
+      <Modal
+        visible={isPersonalVisible}
+        animationType="slide"
+        onRequestClose={() => {
+          setIsPersonalVisible(false);
+          cargarDatos();
+        }}
+      >
+        <PersonalScreen
+          userProfile={userProfile}
+          onClose={() => {
+            setIsPersonalVisible(false);
+            cargarDatos();
+          }}
+        />
+      </Modal>
+
+      {/* Modal de Pagos y Proveedores */}
+      <Modal
+        visible={isPagosVisible}
+        animationType="slide"
+        onRequestClose={() => {
+          setIsPagosVisible(false);
+          cargarDatos();
+        }}
+      >
+        <PagosScreen
+          userProfile={userProfile}
+          onClose={() => {
+            setIsPagosVisible(false);
+            cargarDatos();
+          }}
+        />
+      </Modal>
+
+      {/* Modal de Facturas y Comprobantes */}
+      <Modal
+        visible={isFacturasVisible}
+        animationType="slide"
+        onRequestClose={() => {
+          setIsFacturasVisible(false);
+          cargarDatos();
+        }}
+      >
+        <FacturasScreen
+          userProfile={userProfile}
+          onClose={() => {
+            setIsFacturasVisible(false);
+            cargarDatos();
+          }}
+        />
+      </Modal>
+
+      {/* Modal de CMS Menú y Precios */}
+      <Modal
+        visible={isCmsVisible}
+        animationType="slide"
+        onRequestClose={() => setIsCmsVisible(false)}
+      >
+        <MenuCmsScreen
+          userProfile={userProfile}
+          onClose={() => setIsCmsVisible(false)}
+        />
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -669,7 +1116,7 @@ export default function BalanceScreen({ userProfile, onClose }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: POS_COLORS.canvas,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
@@ -678,9 +1125,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: POS_COLORS.surfaceStrong,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(92, 139, 248, 0.15)',
+    borderBottomColor: POS_COLORS.line,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -690,26 +1137,35 @@ const styles = StyleSheet.create({
   headerTitle: {
     ...TYPOGRAPHY.h2,
     fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontWeight: '900',
+    color: POS_COLORS.ink,
+    letterSpacing: -0.4,
   },
   headerSubtitle: {
     ...TYPOGRAPHY.caption,
-    color: '#64748B',
+    color: POS_COLORS.muted,
+    fontWeight: '600',
   },
   closeButton: {
     paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    backgroundColor: '#F1F5F9',
-    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: 7,
+    backgroundColor: POS_COLORS.surface,
+    borderRadius: 11,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.15)',
+    borderColor: POS_COLORS.line,
   },
   closeButtonText: {
     ...TYPOGRAPHY.button,
     fontSize: 13,
-    color: '#475569',
+    color: POS_COLORS.muted,
     fontWeight: '700',
+  },
+  logoutButton: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: COLORS.danger,
+  },
+  logoutButtonText: {
+    color: COLORS.danger,
   },
 
   // Períodos
@@ -717,9 +1173,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: POS_COLORS.surfaceStrong,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(92, 139, 248, 0.1)',
+    borderBottomColor: POS_COLORS.line,
     gap: 8,
   },
   periodoChip: {
@@ -727,23 +1183,23 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: POS_COLORS.surface,
+    borderRadius: 9,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.12)',
+    borderColor: POS_COLORS.line,
   },
   periodoChipActive: {
-    backgroundColor: 'rgba(92, 139, 248, 0.15)',
-    borderColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primarySoft,
+    borderColor: POS_COLORS.primary,
   },
   periodoChipText: {
     ...TYPOGRAPHY.caption,
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   periodoChipTextActive: {
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
     fontWeight: '800',
   },
 
@@ -753,33 +1209,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs + 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: POS_COLORS.surfaceStrong,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(92, 139, 248, 0.1)',
+    borderBottomColor: POS_COLORS.line,
   },
   sucursalFilterLabel: {
     ...TYPOGRAPHY.caption,
-    color: '#64748B',
+    color: POS_COLORS.muted,
     fontWeight: '700',
     marginRight: SPACING.sm,
   },
   sucursalChip: {
     paddingHorizontal: SPACING.md,
     paddingVertical: 5,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: '#F8FAFC',
+    borderRadius: BORDER_RADIUS.round,
+    backgroundColor: POS_COLORS.surface,
     marginRight: 6,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.12)',
+    borderColor: POS_COLORS.line,
   },
   sucursalChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primaryDark,
+    borderColor: POS_COLORS.primaryDark,
   },
   sucursalChipText: {
     ...TYPOGRAPHY.caption,
     fontSize: 11,
-    color: '#64748B',
+    color: POS_COLORS.muted,
     fontWeight: '600',
   },
   sucursalChipTextActive: {
@@ -801,11 +1257,11 @@ const styles = StyleSheet.create({
   },
   kpiCard: {
     width: '48.5%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: POS_COLORS.surfaceStrong,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.12)',
+    borderColor: POS_COLORS.line,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.04,
@@ -814,7 +1270,7 @@ const styles = StyleSheet.create({
   },
   kpiCardIngresos: {
     borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
+    borderLeftColor: POS_COLORS.primary,
   },
   kpiCardEgresos: {
     borderLeftWidth: 4,
@@ -822,7 +1278,7 @@ const styles = StyleSheet.create({
   },
   kpiCardUtilidadPos: {
     borderLeftWidth: 4,
-    borderLeftColor: '#34D399',
+    borderLeftColor: POS_COLORS.primary,
   },
   kpiCardUtilidadNeg: {
     borderLeftWidth: 4,
@@ -842,7 +1298,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     fontSize: 10,
     fontWeight: '800',
-    color: '#64748B',
+    color: POS_COLORS.muted,
     letterSpacing: 0.5,
   },
   kpiIcon: {
@@ -857,15 +1313,15 @@ const styles = StyleSheet.create({
   kpiSubtext: {
     ...TYPOGRAPHY.caption,
     fontSize: 10,
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   estadoBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.xs,
+    borderRadius: 6,
   },
   estadoBadgePos: {
-    backgroundColor: 'rgba(52, 211, 153, 0.15)',
+    backgroundColor: POS_COLORS.primarySoft,
   },
   estadoBadgeNeg: {
     backgroundColor: 'rgba(248, 113, 113, 0.15)',
@@ -875,7 +1331,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   estadoBadgeTextPos: {
-    color: '#34D399',
+    color: POS_COLORS.primaryDark,
   },
   estadoBadgeTextNeg: {
     color: '#F87171',
@@ -884,12 +1340,12 @@ const styles = StyleSheet.create({
   // Pestañas
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    borderRadius: 14,
     padding: 4,
     marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.15)',
+    borderColor: POS_COLORS.line,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
@@ -900,19 +1356,19 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: 10,
   },
   tabButtonActive: {
-    backgroundColor: 'rgba(92, 139, 248, 0.15)',
+    backgroundColor: POS_COLORS.primarySoft,
   },
   tabButtonText: {
     ...TYPOGRAPHY.caption,
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   tabButtonTextActive: {
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
     fontWeight: '800',
   },
 
@@ -921,11 +1377,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: POS_COLORS.surfaceStrong,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(92, 139, 248, 0.12)',
+    borderColor: POS_COLORS.line,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.04,
@@ -936,7 +1392,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.subtitle,
     fontSize: 14,
     fontWeight: '800',
-    color: '#0F172A',
+    color: POS_COLORS.ink,
     marginBottom: SPACING.sm,
   },
   cardHeaderWithBadge: {
@@ -945,19 +1401,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cajaBadge: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: POS_COLORS.primarySoft,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.xs,
+    borderRadius: 6,
   },
   cajaBadgeText: {
-    color: '#10B981',
+    color: POS_COLORS.primaryDark,
     fontSize: 10,
     fontWeight: '800',
   },
   cajaSubtext: {
     ...TYPOGRAPHY.caption,
-    color: '#64748B',
+    color: POS_COLORS.muted,
     marginBottom: SPACING.md,
   },
 
@@ -970,10 +1426,10 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
     overflow: 'hidden',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: POS_COLORS.surface,
   },
   barraProporcionIngresos: {
-    backgroundColor: '#10B981',
+    backgroundColor: POS_COLORS.primary,
   },
   barraProporcionEgresos: {
     backgroundColor: '#EF4444',
@@ -995,7 +1451,7 @@ const styles = StyleSheet.create({
   },
   legendText: {
     ...TYPOGRAPHY.caption,
-    color: '#64748B',
+    color: POS_COLORS.muted,
     fontSize: 11,
   },
 
@@ -1007,21 +1463,21 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   desgloseRowDestacado: {
-    backgroundColor: 'rgba(92, 139, 248, 0.08)',
+    backgroundColor: POS_COLORS.primarySoft,
     padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: 10,
     marginTop: 4,
   },
   desgloseLabel: {
     ...TYPOGRAPHY.body,
     fontSize: 13,
-    color: '#0F172A',
+    color: POS_COLORS.ink,
     fontWeight: '600',
   },
   desgloseSub: {
     ...TYPOGRAPHY.caption,
     fontSize: 10,
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   desgloseMonto: {
     ...TYPOGRAPHY.body,
@@ -1030,19 +1486,19 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(92, 139, 248, 0.12)',
+    backgroundColor: POS_COLORS.line,
     marginVertical: 4,
   },
   dividerTotal: {
     height: 1.5,
-    backgroundColor: 'rgba(92, 139, 248, 0.25)',
+    backgroundColor: POS_COLORS.line,
     marginVertical: 6,
   },
   utilidadNetaTitulo: {
     ...TYPOGRAPHY.subtitle,
     fontSize: 13,
     fontWeight: '800',
-    color: '#0F172A',
+    color: POS_COLORS.ink,
   },
   utilidadNetaValor: {
     ...TYPOGRAPHY.h2,
@@ -1057,7 +1513,7 @@ const styles = StyleSheet.create({
     borderColor: '#F59E0B',
     borderWidth: 1,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: 16,
     gap: SPACING.sm,
   },
   alertaDeudaIcon: {
@@ -1073,36 +1529,36 @@ const styles = StyleSheet.create({
   alertaDeudaTexto: {
     ...TYPOGRAPHY.caption,
     fontSize: 11,
-    color: '#475569',
+    color: POS_COLORS.muted,
     lineHeight: 16,
   },
 
   // Arqueo Caja
   cardCajaFisica: {
     borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
+    borderLeftColor: POS_COLORS.primary,
   },
   saldoCajaBox: {
-    backgroundColor: 'rgba(16, 185, 129, 0.06)',
+    backgroundColor: POS_COLORS.primarySoft,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: 12,
     alignItems: 'center',
     marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.25)',
+    borderColor: POS_COLORS.line,
   },
   saldoCajaLabel: {
     ...TYPOGRAPHY.caption,
     fontSize: 10,
     fontWeight: '800',
-    color: '#10B981',
+    color: POS_COLORS.primaryDark,
     letterSpacing: 0.5,
   },
   saldoCajaMonto: {
     ...TYPOGRAPHY.h1,
     fontSize: 22,
     fontWeight: '900',
-    color: '#10B981',
+    color: POS_COLORS.primaryDark,
     marginTop: 4,
   },
   arqueoItemRow: {
@@ -1113,7 +1569,7 @@ const styles = StyleSheet.create({
   arqueoItemLabel: {
     ...TYPOGRAPHY.body,
     fontSize: 12,
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   arqueoItemMonto: {
     ...TYPOGRAPHY.body,
@@ -1127,18 +1583,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(92, 139, 248, 0.08)',
+    borderBottomColor: POS_COLORS.line,
   },
   topProdRankBadge: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(92, 139, 248, 0.15)',
+    backgroundColor: POS_COLORS.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   topProdRankText: {
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
     fontSize: 11,
     fontWeight: '800',
   },
@@ -1146,23 +1602,23 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.body,
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
+    color: POS_COLORS.ink,
   },
   topProdSub: {
     ...TYPOGRAPHY.caption,
     fontSize: 10,
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   topProdQtyBadge: {
-    backgroundColor: 'rgba(92, 139, 248, 0.1)',
+    backgroundColor: POS_COLORS.primarySoft,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.xs,
+    borderRadius: 6,
   },
   topProdQtyText: {
     ...TYPOGRAPHY.caption,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
   },
 
   // Transacciones
@@ -1172,32 +1628,198 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(92, 139, 248, 0.08)',
+    borderBottomColor: POS_COLORS.line,
   },
   transaccionId: {
     ...TYPOGRAPHY.caption,
     fontWeight: '800',
-    color: '#0F172A',
+    color: POS_COLORS.ink,
   },
   transaccionSub: {
     ...TYPOGRAPHY.caption,
     fontSize: 10,
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   transaccionMonto: {
     ...TYPOGRAPHY.body,
     fontWeight: '800',
-    color: '#0F172A',
+    color: POS_COLORS.ink,
   },
   transaccionMetodo: {
     ...TYPOGRAPHY.caption,
     fontSize: 9,
-    color: '#64748B',
+    color: POS_COLORS.muted,
   },
   emptyText: {
     ...TYPOGRAPHY.caption,
-    color: '#64748B',
+    color: POS_COLORS.muted,
     textAlign: 'center',
     paddingVertical: SPACING.md,
+  },
+  menuButton: {
+    paddingVertical: SPACING.xs + 2,
+    paddingHorizontal: SPACING.md,
+    borderRadius: 11,
+    backgroundColor: POS_COLORS.primaryDark,
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 40,
+  },
+  menuButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  // ─── Dual-Column Lateral Drawer (Anclado a la derecha) ──
+  drawerOverlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'stretch',
+  },
+  dualDrawerContainer: {
+    flexDirection: 'row',
+    backgroundColor: POS_COLORS.surfaceStrong,
+    width: 380,
+    maxWidth: '92%',
+    height: '100%',
+    borderTopLeftRadius: 24,
+    borderBottomLeftRadius: 24,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+    overflow: 'hidden',
+    borderLeftWidth: 1,
+    borderLeftColor: POS_COLORS.line,
+    shadowColor: '#000',
+    shadowOffset: { width: -4, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  dualDrawerInner: {
+    flex: 1,
+    flexDirection: 'row',
+    height: '100%',
+  },
+  railColumn: {
+    width: 96,
+    backgroundColor: POS_COLORS.canvas,
+    borderRightWidth: 1,
+    borderRightColor: POS_COLORS.line,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  railScrollContent: {
+    alignItems: 'center',
+    paddingVertical: SPACING.xs,
+  },
+  railTabItem: {
+    width: 80,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    marginVertical: 4,
+    backgroundColor: 'transparent',
+  },
+  railTabItemSelected: {
+    backgroundColor: POS_COLORS.primarySoft,
+    borderWidth: 1.5,
+    borderColor: POS_COLORS.primary,
+  },
+  railTabIcon: {
+    width: 24,
+    height: 24,
+    marginBottom: 5,
+  },
+  railTabLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: POS_COLORS.muted,
+    textAlign: 'center',
+  },
+  railTabLabelSelected: {
+    color: POS_COLORS.primaryDark,
+    fontWeight: '800',
+  },
+  submenuColumn: {
+    flex: 1,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    paddingHorizontal: 18,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    position: 'relative',
+  },
+  submenuCloseBtn: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 44 : 16,
+    right: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: POS_COLORS.canvas,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
+  },
+  submenuCloseText: {
+    color: POS_COLORS.muted,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  submenuScrollContent: {
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  submenuMainPill: {
+    backgroundColor: POS_COLORS.primaryDark,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    shadowColor: POS_COLORS.primaryDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  submenuMainPillText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  submenuMainPillSub: {
+    color: 'rgba(255, 255, 255, 0.88)',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+    letterSpacing: 0.5,
+  },
+  submenuLinksList: {
+    gap: 8,
+  },
+  submenuLinkItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 11,
+    backgroundColor: POS_COLORS.surface,
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
+  },
+  submenuLinkItemDanger: {
+    backgroundColor: 'rgba(239, 68, 68, 0.06)',
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  submenuLinkText: {
+    color: POS_COLORS.ink,
+    fontSize: 13.5,
+    fontWeight: '600',
+  },
+  submenuLinkDanger: {
+    color: COLORS.danger,
+    fontWeight: '700',
   },
 });

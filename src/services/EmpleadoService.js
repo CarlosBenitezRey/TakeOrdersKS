@@ -2,11 +2,13 @@ import empleadoRepository from '../repositories/EmpleadoRepository';
 
 // Roles disponibles en el sistema
 export const ROLES_DISPONIBLES = [
-  { label: 'Cajero',    value: 'cajero' },
-  { label: 'Cocinero',  value: 'cocinero' },
-  { label: 'Mozo',      value: 'mozo' },
-  { label: 'Supervisor',value: 'supervisor' },
-  { label: 'Admin',     value: 'admin' },
+  { label: 'Cajero',     value: 'cajero' },
+  { label: 'Cocinero',   value: 'cocinero' },
+  { label: 'Delivery',   value: 'delivery' },
+  { label: 'Mozo',       value: 'mozo' },
+  { label: 'Supervisor', value: 'supervisor' },
+  { label: 'Admin',      value: 'admin' },
+  { label: 'SuperAdmin', value: 'superadmin' },
 ];
 
 /**

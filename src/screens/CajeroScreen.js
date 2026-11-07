@@ -54,7 +54,11 @@ const FONT_BODY = Platform.select({
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
-export default function CajeroScreen({ userProfile, onSwitchView }) {
+export default function CajeroScreen({
+  userProfile,
+  onSwitchView,
+  onNavigateDelivery,
+}) {
   // ─── Lógica Responsive (Móvil, Tablet, Desktop) ──────────────────────────────
   const { width: windowWidth } = useWindowDimensions();
   const isMobile = windowWidth < 600;
@@ -97,8 +101,12 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
   const [carrito, setCarrito] = useState([]);
   const [isCartVisible, setIsCartVisible] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
+  const [tipoPedido, setTipoPedido] = useState('local'); // 'local' | 'retiro' | 'delivery'
   const [mesa, setMesa] = useState('');
   const [cliente, setCliente] = useState('');
+  const [telefonoDelivery, setTelefonoDelivery] = useState('');
+  const [direccionDelivery, setDireccionDelivery] = useState('');
+  const [ubicacionUrl, setUbicacionUrl] = useState('');
   const [notas, setNotas] = useState('');
   const [metodoPago, setMetodoPago] = useState('efectivo');
 
@@ -342,13 +350,29 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
   const guardarPedido = async () => {
     if (carrito.length === 0) return;
 
+    if (
+      tipoPedido === 'delivery' &&
+      !direccionDelivery.trim() &&
+      !ubicacionUrl.trim()
+    ) {
+      showStatus(
+        'Para delivery ingresá la dirección o pegá la URL de ubicación',
+        'error'
+      );
+      return;
+    }
+
     try {
       setSavingOrder(true);
 
       // OrderService maneja toda la lógica: validación, cálculo de total, FK check y persistencia
       const nuevoPedido = await orderService.crearPedido(carrito, {
+        tipoPedido,
         mesa,
         cliente,
+        telefono: telefonoDelivery,
+        direccion: direccionDelivery,
+        ubicacionUrl,
         notas,
         metodoPago,
         sucursalId: userProfile?.sucursal_id || null,
@@ -364,8 +388,12 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
 
       // Reset del formulario tras éxito
       setCarrito(carritoService.vaciar());
+      setTipoPedido('local');
       setMesa('');
       setCliente('');
+      setTelefonoDelivery('');
+      setDireccionDelivery('');
+      setUbicacionUrl('');
       setNotas('');
       setClienteRuc('');
       setRucLookup({ status: 'idle', data: null, error: '' });
@@ -461,7 +489,7 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
 
   const renderCartItem = ({ item }) => (
     <View style={[styles.cartItemCard, isMobile && styles.cartItemCardMobile]}>
-      <View style={styles.cartItemInfo}>
+      <View style={[styles.cartItemInfo, isMobile && styles.cartItemInfoMobile]}>
         <Image
           source={getProductImage(item.producto.nombre)}
           style={styles.cartItemImage}
@@ -506,6 +534,23 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
     </View>
   );
 
+  const pegarUrlPortapapeles = async () => {
+    try {
+      if (
+        Platform.OS === 'web' &&
+        typeof navigator !== 'undefined' &&
+        navigator.clipboard?.readText
+      ) {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          setUbicacionUrl(text.trim());
+        }
+      }
+    } catch (_err) {
+      // Si el navegador bloquea lectura directa, el usuario puede pegar manualmente
+    }
+  };
+
   const renderOrderForm = () => (
     <View style={[styles.modalFormContainer, isMobile && styles.modalFormContainerMobile]}>
       <View style={styles.formSectionHeading}>
@@ -513,28 +558,157 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
         <Text style={styles.formSectionTitle}>Entrega y facturación</Text>
       </View>
 
-      <View style={[styles.formRow, isMobile && styles.formRowMobile]}>
-        <View style={[styles.formHalfInputWrapper, isMobile && styles.formInputFull]}>
-          <Text style={styles.formInputLabel}>Mesa / destino</Text>
-          <TextInput
-            style={styles.formInput}
-            placeholder="Ej. Mesa 4 o Para llevar"
-            placeholderTextColor={POS_COLORS.muted}
-            value={mesa}
-            onChangeText={setMesa}
-          />
-        </View>
-        <View style={[styles.formHalfInputWrapper, isMobile && styles.formInputFull]}>
-          <Text style={styles.formInputLabel}>Cliente / razón social</Text>
-          <TextInput
-            style={styles.formInput}
-            placeholder="Se completa al consultar el RUC"
-            placeholderTextColor={POS_COLORS.muted}
-            value={cliente}
-            onChangeText={setCliente}
-          />
+      {/* Selector de Modalidad: Local | Retiro | Delivery */}
+      <View style={styles.deliveryModeSection}>
+        <Text style={styles.formInputLabel}>Modalidad del pedido</Text>
+        <View style={styles.deliveryModeRow}>
+          {[
+            { id: 'local', label: 'En el local' },
+            { id: 'retiro', label: 'Retiro' },
+            { id: 'delivery', label: 'Delivery' },
+          ].map((modo) => {
+            const isSelected = tipoPedido === modo.id;
+            return (
+              <TouchableOpacity
+                key={modo.id}
+                style={[
+                  styles.deliveryModeOption,
+                  isSelected && styles.deliveryModeOptionActive,
+                ]}
+                onPress={() => setTipoPedido(modo.id)}
+              >
+                <Text
+                  style={[
+                    styles.deliveryModeOptionText,
+                    isSelected && styles.deliveryModeOptionTextActive,
+                  ]}
+                >
+                  {modo.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
+
+      {/* Campos según modalidad */}
+      {tipoPedido === 'local' ? (
+        <View style={[styles.formRow, isMobile && styles.formRowMobile]}>
+          <View style={[styles.formHalfInputWrapper, isMobile && styles.formInputFull]}>
+            <Text style={styles.formInputLabel}>Mesa / destino</Text>
+            <TextInput
+              style={styles.formInput}
+              placeholder="Ej. Mesa 4 o Barra"
+              placeholderTextColor={POS_COLORS.muted}
+              value={mesa}
+              onChangeText={setMesa}
+            />
+          </View>
+          <View style={[styles.formHalfInputWrapper, isMobile && styles.formInputFull]}>
+            <Text style={styles.formInputLabel}>Cliente / razón social</Text>
+            <TextInput
+              style={styles.formInput}
+              placeholder="Nombre o se completa con RUC"
+              placeholderTextColor={POS_COLORS.muted}
+              value={cliente}
+              onChangeText={setCliente}
+            />
+          </View>
+        </View>
+      ) : null}
+
+      {tipoPedido === 'retiro' ? (
+        <View style={[styles.formRow, isMobile && styles.formRowMobile]}>
+          <View style={[styles.formHalfInputWrapper, isMobile && styles.formInputFull]}>
+            <Text style={styles.formInputLabel}>Nombre del cliente</Text>
+            <TextInput
+              style={styles.formInput}
+              placeholder="Quién retira el pedido"
+              placeholderTextColor={POS_COLORS.muted}
+              value={cliente}
+              onChangeText={setCliente}
+            />
+          </View>
+          <View style={[styles.formHalfInputWrapper, isMobile && styles.formInputFull]}>
+            <Text style={styles.formInputLabel}>Teléfono (opcional)</Text>
+            <TextInput
+              style={styles.formInput}
+              placeholder="Ej. 0981 123 456"
+              placeholderTextColor={POS_COLORS.muted}
+              value={telefonoDelivery}
+              onChangeText={setTelefonoDelivery}
+              keyboardType="phone-pad"
+            />
+          </View>
+        </View>
+      ) : null}
+
+      {tipoPedido === 'delivery' ? (
+        <View style={styles.deliveryDetailsBox}>
+          <View style={styles.deliveryDetailsHeader}>
+            <Text style={styles.deliveryDetailsTitle}>Datos para Delivery</Text>
+          </View>
+
+          <View style={[styles.formRow, isMobile && styles.formRowMobile]}>
+            <View style={[styles.formHalfInputWrapper, isMobile && styles.formInputFull]}>
+              <Text style={styles.formInputLabel}>Nombre del cliente</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder=""
+                placeholderTextColor={POS_COLORS.muted}
+                value={cliente}
+                onChangeText={setCliente}
+              />
+            </View>
+            <View style={[styles.formHalfInputWrapper, isMobile && styles.formInputFull]}>
+              <Text style={styles.formInputLabel}>Número de teléfono</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="Ej. 0981 123 456"
+                placeholderTextColor={POS_COLORS.muted}
+                value={telefonoDelivery}
+                onChangeText={setTelefonoDelivery}
+                keyboardType="phone-pad"
+              />
+            </View>
+          </View>
+
+          <View style={styles.deliveryFieldBlock}>
+            <Text style={styles.formInputLabel}>Dirección / Referencia de la casa</Text>
+            <TextInput
+              style={styles.formInput}
+              placeholder="Ej. Av. Mcal. López casi San Martín, portón negro"
+              placeholderTextColor={POS_COLORS.muted}
+              value={direccionDelivery}
+              onChangeText={setDireccionDelivery}
+            />
+          </View>
+
+          <View style={styles.deliveryFieldBlock}>
+            <View style={styles.deliveryUrlHeaderRow}>
+              <Text style={styles.formInputLabel}>Link de ubicación (Google Maps)</Text>
+              {Platform.OS === 'web' && (
+                <TouchableOpacity
+                  style={styles.miniActionPill}
+                  onPress={pegarUrlPortapapeles}
+                >
+                  <Text style={styles.miniActionPillText}>Pegar link</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <TextInput
+              style={styles.formInput}
+              placeholder="Pegá aquí el link de Google Maps (https://maps.app.goo.gl/...)"
+              placeholderTextColor={POS_COLORS.muted}
+              value={ubicacionUrl}
+              onChangeText={setUbicacionUrl}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+        </View>
+      ) : null}
 
       <View style={styles.rucLookupSection}>
         <Text style={styles.formInputLabel}>RUC / C.I.</Text>
@@ -597,7 +771,7 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
               style={[
                 styles.rucResultStatusIcon,
                 rucLookup.data.estado !== 'ACTIVO' &&
-                  styles.rucResultStatusIconWarning,
+                styles.rucResultStatusIconWarning,
               ]}
             >
               <Text style={styles.rucResultStatusIconText}>
@@ -759,6 +933,33 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
               label: 'Control de Preparación',
               onPress: () => {
                 closeDrawer(onSwitchView);
+              },
+            },
+          ],
+        },
+      ]
+      : []),
+    ...(onNavigateDelivery
+      ? [
+        {
+          id: 'delivery',
+          label: 'Delivery',
+          icon: APP_ICONS.kitchen,
+          pill: 'Pantalla de Delivery',
+          onPillPress: () => {
+            closeDrawer(onNavigateDelivery);
+          },
+          items: [
+            {
+              label: 'Pedidos Listos para Envío',
+              onPress: () => {
+                closeDrawer(onNavigateDelivery);
+              },
+            },
+            {
+              label: 'Rutas y Ubicaciones Maps',
+              onPress: () => {
+                closeDrawer(onNavigateDelivery);
               },
             },
           ],
@@ -1040,9 +1241,8 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
         <Text style={styles.catalogCount}>
           {loading
             ? 'Cargando…'
-            : `${productosFiltrados.length} ${
-                productosFiltrados.length === 1 ? 'producto' : 'productos'
-              }`}
+            : `${productosFiltrados.length} ${productosFiltrados.length === 1 ? 'producto' : 'productos'
+            }`}
         </Text>
       </View>
 
@@ -1127,76 +1327,76 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
                     agregarProducto(item);
                   }}
                 >
-                {/* Fotografía del producto */}
-                <View
-                  style={[
-                    styles.imageThumbnailWrapper,
-                    {
-                      width: cardImageSize,
-                      height: cardImageSize,
-                    },
-                  ]}
-                >
-                  <Image
-                    source={getProductImage(item.nombre, item.imagen_url)}
-                    style={styles.productImage}
-                    resizeMode="cover"
-                  />
-                </View>
-
-                {/* Información del producto */}
-                <View style={styles.cardTextContainer}>
-                  <Text
+                  {/* Fotografía del producto */}
+                  <View
                     style={[
-                      styles.productName,
+                      styles.imageThumbnailWrapper,
                       {
-                        fontSize: cardTitleSize,
-                        lineHeight: cardTitleLineHeight,
+                        width: cardImageSize,
+                        height: cardImageSize,
                       },
                     ]}
-                    numberOfLines={2}
                   >
-                    {item.nombre}
-                  </Text>
-                  <View style={styles.cardPriceRow}>
+                    <Image
+                      source={getProductImage(item.nombre, item.imagen_url)}
+                      style={styles.productImage}
+                      resizeMode="cover"
+                    />
+                  </View>
+
+                  {/* Información del producto */}
+                  <View style={styles.cardTextContainer}>
                     <Text
                       style={[
-                        styles.productPrice,
+                        styles.productName,
                         {
-                          fontSize: cardPriceSize,
+                          fontSize: cardTitleSize,
+                          lineHeight: cardTitleLineHeight,
                         },
                       ]}
+                      numberOfLines={2}
                     >
-                      Gs. {formatPrice(item.precio)}
+                      {item.nombre}
                     </Text>
-                    {isDisponible && (
-                      <View
+                    <View style={styles.cardPriceRow}>
+                      <Text
                         style={[
-                          styles.cardAddButton,
-                          cantidadEnCarrito > 0 && styles.cardAddButtonActive,
+                          styles.productPrice,
+                          {
+                            fontSize: cardPriceSize,
+                          },
                         ]}
                       >
-                        <Text
+                        Gs. {formatPrice(item.precio)}
+                      </Text>
+                      {isDisponible && (
+                        <View
                           style={[
-                            styles.cardAddButtonText,
-                            cantidadEnCarrito > 0 && styles.cardAddButtonTextActive,
+                            styles.cardAddButton,
+                            cantidadEnCarrito > 0 && styles.cardAddButtonActive,
                           ]}
                         >
-                          {cantidadEnCarrito > 0 ? `✓ ${cantidadEnCarrito}` : '+'}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-
-                {/* Overlay si está agotado */}
-                {!isDisponible && (
-                  <View style={styles.agotadoOverlay}>
-                    <View style={styles.badgeAgotado}>
-                      <Text style={styles.badgeAgotadoText}>AGOTADO</Text>
+                          <Text
+                            style={[
+                              styles.cardAddButtonText,
+                              cantidadEnCarrito > 0 && styles.cardAddButtonTextActive,
+                            ]}
+                          >
+                            {cantidadEnCarrito > 0 ? `✓ ${cantidadEnCarrito}` : '+'}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   </View>
-                )}
+
+                  {/* Overlay si está agotado */}
+                  {!isDisponible && (
+                    <View style={styles.agotadoOverlay}>
+                      <View style={styles.badgeAgotado}>
+                        <Text style={styles.badgeAgotadoText}>AGOTADO</Text>
+                      </View>
+                    </View>
+                  )}
 
                 </Pressable>
 
@@ -1273,11 +1473,11 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
           onPress={() => setIsCartVisible(false)}
         >
           <TouchableOpacity
-            style={styles.modalContainer}
+            style={[styles.modalContainer, isMobile && styles.modalContainerMobile]}
             activeOpacity={1}
             onPress={(e) => e?.stopPropagation?.()}
           >
-            <View style={styles.modalHeader}>
+            <View style={[styles.modalHeader, isMobile && styles.modalHeaderMobile]}>
               <View>
                 <Text style={styles.modalEyebrow}>REVISIÓN DEL PEDIDO</Text>
                 <Text style={styles.modalTitle}>Pedido actual</Text>
@@ -1295,11 +1495,13 @@ export default function CajeroScreen({ userProfile, onSwitchView }) {
 
             {isMobile ? (
               <FlatList
+                style={styles.modalMobileList}
                 data={carrito}
                 keyExtractor={(item) => item.producto.id.toString()}
                 contentContainerStyle={styles.modalListContent}
                 renderItem={renderCartItem}
                 ListFooterComponent={renderOrderForm}
+                keyboardShouldPersistTaps="handled"
               />
             ) : (
               <View style={styles.modalBodyWide}>
@@ -2217,7 +2419,12 @@ const styles = StyleSheet.create({
     shadowRadius: 34,
     elevation: 20,
   },
+  modalContainerMobile: {
+    maxHeight: '92%',
+    borderRadius: 20,
+  },
   modalHeader: {
+    flexShrink: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -2226,6 +2433,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: POS_COLORS.line,
     backgroundColor: POS_COLORS.surfaceStrong,
+  },
+  modalHeaderMobile: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   modalTitle: {
     color: POS_COLORS.ink,
@@ -2266,8 +2477,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  modalMobileList: {
+    flexGrow: 1,
+    flexShrink: 1,
+    minHeight: 0,
+  },
   modalListContent: {
     padding: 14,
+    paddingBottom: 24,
   },
   modalBodyWide: {
     flex: 1,
@@ -2334,6 +2551,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+  },
+  cartItemInfoMobile: {
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
+    width: '100%',
   },
   cartItemImage: {
     width: 54,
@@ -2420,6 +2643,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   modalFooter: {
+    flexShrink: 0,
     minHeight: 86,
     paddingHorizontal: 26,
     paddingVertical: 16,
@@ -2432,6 +2656,8 @@ const styles = StyleSheet.create({
   },
   modalFooterMobile: {
     minHeight: 0,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     flexDirection: 'column',
     alignItems: 'stretch',
     gap: 12,
@@ -2444,7 +2670,9 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   modalTotalRowMobile: {
-    flex: 0,
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
     width: '100%',
   },
   modalTotalLabel: {
@@ -2529,13 +2757,17 @@ const styles = StyleSheet.create({
   },
   formRowMobile: {
     flexDirection: 'column',
+    gap: 12,
   },
   formHalfInputWrapper: {
     flex: 1,
+    minWidth: 0,
   },
   formInputFull: {
     width: '100%',
-    flex: 0,
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
   },
   formInputLabel: {
     ...TYPOGRAPHY.caption,
@@ -2557,6 +2789,149 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     color: POS_COLORS.ink,
     fontSize: 14,
+  },
+  deliveryModeSection: {
+    marginBottom: 14,
+  },
+  deliveryModeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  deliveryModeOption: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
+    backgroundColor: POS_COLORS.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deliveryModeOptionActive: {
+    backgroundColor: POS_COLORS.primaryDark,
+    borderColor: POS_COLORS.primaryDark,
+  },
+  deliveryModeOptionText: {
+    color: POS_COLORS.ink,
+    fontFamily: FONT_BODY,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  deliveryModeOptionTextActive: {
+    color: '#FFFFFF',
+  },
+  deliveryDetailsBox: {
+    marginBottom: 14,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#C7DDCE',
+    backgroundColor: POS_COLORS.primarySoft,
+    gap: 4,
+  },
+  deliveryDetailsHeader: {
+    marginBottom: 8,
+  },
+  deliveryDetailsTitle: {
+    color: POS_COLORS.primaryDark,
+    fontFamily: FONT_BODY,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  deliveryDetailsSubtitle: {
+    color: POS_COLORS.muted,
+    fontFamily: FONT_BODY,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  deliveryFieldBlock: {
+    marginBottom: 10,
+  },
+  deliveryUrlHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 4,
+  },
+  deliveryUrlHelpers: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  miniActionPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
+  },
+  miniActionPillActive: {
+    backgroundColor: POS_COLORS.primaryDark,
+    borderColor: POS_COLORS.primaryDark,
+  },
+  miniActionPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: POS_COLORS.primaryDark,
+  },
+  miniActionPillTextActive: {
+    color: '#FFFFFF',
+  },
+  miniMapaCard: {
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
+    gap: 6,
+  },
+  miniMapaTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: POS_COLORS.ink,
+  },
+  miniMapaSubtitle: {
+    fontSize: 10,
+    color: POS_COLORS.muted,
+  },
+  quickZonesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  quickZoneChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: POS_COLORS.surface,
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
+  },
+  quickZoneChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: POS_COLORS.ink,
+  },
+  generateFromAddressBtn: {
+    marginTop: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: POS_COLORS.primarySoft,
+    borderWidth: 1,
+    borderColor: '#C7DDCE',
+    alignItems: 'center',
+  },
+  generateFromAddressBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: POS_COLORS.primaryDark,
   },
   rucLookupSection: {
     marginBottom: 14,

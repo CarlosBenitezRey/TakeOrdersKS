@@ -29,10 +29,28 @@ class OrderService {
    * @returns {object} El pedido creado.
    * @throws {Error} Si el carrito está vacío.
    */
-  async crearPedido(carrito, { mesa, cliente, notas, metodoPago, sucursalId, usuarioId }) {
+  async crearPedido(
+    carrito,
+    {
+      tipoPedido = 'local',
+      mesa,
+      cliente,
+      telefono,
+      direccion,
+      ubicacionUrl,
+      notas,
+      metodoPago,
+      sucursalId,
+      usuarioId,
+    }
+  ) {
     if (!carrito || carrito.length === 0) {
       throw new Error('El carrito no puede estar vacío');
     }
+
+    const modalidad = ['local', 'retiro', 'delivery'].includes(tipoPedido)
+      ? tipoPedido
+      : 'local';
 
     // Calcular total
     const total = carrito.reduce(
@@ -47,11 +65,27 @@ class OrderService {
       usuarioIdValido = existe ? usuarioId : null;
     }
 
+    const mesaFinal =
+      modalidad === 'local'
+        ? mesa?.trim() || null
+        : modalidad === 'retiro'
+        ? 'Para retirar'
+        : 'Delivery';
+
+    const metadataEntrega = {
+      tipoPedido: modalidad,
+      telefono: telefono?.trim() || null,
+      direccion: direccion?.trim() || null,
+      ubicacionUrl: ubicacionUrl?.trim() || null,
+    };
+
     const pedidoData = {
       estado: 'pendiente',
-      mesa: mesa?.trim() || null,
+      tipo: modalidad,
+      mesa: mesaFinal,
       cliente: cliente?.trim() || null,
       notas: notas?.trim() || null,
+      observacion: JSON.stringify(metadataEntrega),
       total,
       metodo_pago: metodoPago || 'efectivo',
       usuario_id: usuarioIdValido,
@@ -65,6 +99,57 @@ class OrderService {
     }));
 
     return await pedidoRepository.crear(pedidoData, detalles);
+  }
+
+  /**
+   * Extrae y normaliza los datos de modalidad y entrega (Local, Retiro o Delivery)
+   * desde los campos `tipo`, `observacion` y `mesa` de un pedido.
+   *
+   * @param {object} pedido - Registro de la tabla `pedidos`.
+   * @returns {object} { tipoPedido, esDelivery, esRetiro, esLocal, telefono, direccion, ubicacionUrl, mapsUrl }
+   */
+  extraerDatosEntrega(pedido) {
+    let parsed = {};
+    if (pedido?.observacion && typeof pedido.observacion === 'string') {
+      try {
+        if (pedido.observacion.trim().startsWith('{')) {
+          parsed = JSON.parse(pedido.observacion);
+        }
+      } catch (_err) {
+        parsed = {};
+      }
+    }
+
+    let tipoPedido = parsed.tipoPedido || pedido?.tipo || 'local';
+    if (pedido?.mesa === 'Delivery') tipoPedido = 'delivery';
+    if (pedido?.mesa === 'Para retirar') tipoPedido = 'retiro';
+
+    const telefono = parsed.telefono || '';
+    const direccion = parsed.direccion || '';
+    const ubicacionUrl = parsed.ubicacionUrl || '';
+
+    let mapsUrl = '';
+    const rawTarget = ubicacionUrl.trim() || direccion.trim();
+    if (rawTarget) {
+      if (/^https?:\/\//i.test(rawTarget)) {
+        mapsUrl = rawTarget;
+      } else {
+        mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+          rawTarget
+        )}`;
+      }
+    }
+
+    return {
+      tipoPedido,
+      esDelivery: tipoPedido === 'delivery',
+      esRetiro: tipoPedido === 'retiro',
+      esLocal: tipoPedido === 'local',
+      telefono,
+      direccion,
+      ubicacionUrl,
+      mapsUrl,
+    };
   }
 
   /**

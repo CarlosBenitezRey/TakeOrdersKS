@@ -43,6 +43,7 @@ const ROL_COLORES = {
   mozo: { bg: '#F0F9FF', text: '#0369A1' },
   supervisor: { bg: '#EEF2FF', text: '#4338CA' },
   admin: { bg: '#ECFDF5', text: '#047857' },
+  superadmin: { bg: 'rgba(92, 139, 248, 0.15)', text: '#5c8bf8' },
 };
 
 const formatPrice = (value) =>

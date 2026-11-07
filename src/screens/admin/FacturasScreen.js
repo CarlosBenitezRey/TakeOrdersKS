@@ -15,7 +15,13 @@ import facturaService from '../../services/FacturaService';
 import productService from '../../services/ProductService';
 import TicketFacturaModal from '../../components/TicketFacturaModal';
 import PremiumLoader from '../../components/PremiumLoader';
-import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../theme/theme';
+import {
+  COLORS,
+  POS_COLORS,
+  SPACING,
+  BORDER_RADIUS,
+  TYPOGRAPHY,
+} from '../../theme/theme';
 
 const formatPrice = (value) => Number(value || 0).toLocaleString('es-AR');
 
@@ -59,8 +65,8 @@ export default function FacturasScreen({ userProfile, onClose }) {
     // Extraer ítems desde la relación con detalle_pedido
     const items = (factura.pedidos?.detalle_pedido || []).map((d) => ({
       cantidad: d.cantidad,
-      precio:   d.precio,
-      nombre:   d.productos?.nombre || 'Producto',
+      precio: d.precio,
+      nombre: d.productos?.nombre || 'Producto',
     }));
 
     setFacturaSeleccionada(factura);
@@ -80,7 +86,7 @@ export default function FacturasScreen({ userProfile, onClose }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={POS_COLORS.canvas} />
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
       <View style={styles.header}>
@@ -146,13 +152,13 @@ export default function FacturasScreen({ userProfile, onClose }) {
         </View>
         <View style={styles.kpiCard}>
           <Text style={styles.kpiLabel}>TOTAL IVA 10%</Text>
-          <Text style={[styles.kpiValue, { color: COLORS.success }]}>
+          <Text style={[styles.kpiValue, { color: POS_COLORS.primaryDark }]}>
             Gs. {formatPrice(resumen.totalIva10)}
           </Text>
         </View>
         <View style={styles.kpiCard}>
           <Text style={styles.kpiLabel}>COMPROBANTES</Text>
-          <Text style={[styles.kpiValue, { color: COLORS.secondary }]}>
+          <Text style={[styles.kpiValue, { color: POS_COLORS.primary }]}>
             {resumen.cantidadComprobantes}
           </Text>
         </View>
@@ -163,7 +169,7 @@ export default function FacturasScreen({ userProfile, onClose }) {
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar por cliente, RUC o N° de factura..."
-          placeholderTextColor={COLORS.textMuted}
+          placeholderTextColor={POS_COLORS.muted}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -250,7 +256,7 @@ export default function FacturasScreen({ userProfile, onClose }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: POS_COLORS.canvas,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
@@ -259,29 +265,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
+    backgroundColor: POS_COLORS.surfaceStrong,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: POS_COLORS.line,
   },
   headerTitle: {
     ...TYPOGRAPHY.h2,
-    color: COLORS.primary,
+    fontSize: 18,
+    fontWeight: '900',
+    color: POS_COLORS.ink,
+    letterSpacing: -0.4,
   },
   headerSubtitle: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
+    fontWeight: '600',
   },
   closeBtn: {
-    padding: SPACING.xs,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: POS_COLORS.surface,
+    borderWidth: 1,
+    borderColor: POS_COLORS.line,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   closeBtnText: {
-    color: COLORS.textMuted,
-    fontSize: 22,
+    color: POS_COLORS.muted,
+    fontSize: 16,
     fontWeight: '700',
   },
   sucursalBar: {
-    backgroundColor: COLORS.card,
+    backgroundColor: POS_COLORS.surfaceStrong,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: POS_COLORS.line,
     paddingVertical: 6,
   },
   sucursalList: {
@@ -291,22 +309,22 @@ const styles = StyleSheet.create({
   sucursalPill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.cardElevated,
+    borderRadius: BORDER_RADIUS.round,
+    backgroundColor: POS_COLORS.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
   },
   sucursalPillActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: POS_COLORS.primaryDark,
+    borderColor: POS_COLORS.primaryDark,
   },
   sucursalPillText: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     fontWeight: '600',
   },
   sucursalPillTextActive: {
-    color: COLORS.textLight,
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   kpiContainer: {
@@ -317,23 +335,25 @@ const styles = StyleSheet.create({
   },
   kpiCard: {
     flex: 1,
-    backgroundColor: COLORS.card,
-    padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    padding: SPACING.sm + 2,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
+    borderLeftWidth: 3,
+    borderLeftColor: POS_COLORS.primary,
     alignItems: 'center',
   },
   kpiLabel: {
     fontSize: 10,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
   kpiValue: {
     fontSize: 14,
-    fontWeight: '800',
-    color: COLORS.text,
+    fontWeight: '900',
+    color: POS_COLORS.ink,
     marginTop: 4,
   },
   searchContainer: {
@@ -344,12 +364,12 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     height: 44,
-    backgroundColor: COLORS.card,
-    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    borderRadius: 12,
     paddingHorizontal: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    color: COLORS.text,
+    borderColor: POS_COLORS.line,
+    color: POS_COLORS.ink,
     fontSize: 13,
   },
   clearSearchBtn: {
@@ -358,7 +378,7 @@ const styles = StyleSheet.create({
     top: 12,
   },
   clearSearchText: {
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -368,11 +388,11 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl,
   },
   facturaCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: POS_COLORS.surfaceStrong,
+    borderRadius: 16,
     padding: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: POS_COLORS.line,
   },
   cardTop: {
     flexDirection: 'row',
@@ -382,17 +402,17 @@ const styles = StyleSheet.create({
   facturaNum: {
     fontSize: 14,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
   },
   clienteName: {
     fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.text,
+    fontWeight: '800',
+    color: POS_COLORS.ink,
     marginTop: 2,
   },
   clienteRuc: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     marginTop: 1,
   },
   amountBox: {
@@ -401,17 +421,17 @@ const styles = StyleSheet.create({
   amountTotal: {
     fontSize: 16,
     fontWeight: '900',
-    color: COLORS.text,
+    color: POS_COLORS.ink,
   },
   amountIva: {
     fontSize: 11,
-    color: COLORS.success,
+    color: POS_COLORS.primary,
     marginTop: 2,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   cardDivider: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: POS_COLORS.line,
     marginVertical: SPACING.sm,
   },
   cardBottom: {
@@ -421,25 +441,25 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
   },
   metaText: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     marginTop: 2,
   },
   viewTicketBtn: {
-    backgroundColor: 'rgba(92, 139, 248, 0.15)',
+    backgroundColor: POS_COLORS.primarySoft,
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: POS_COLORS.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: 9,
   },
   viewTicketBtnText: {
-    color: COLORS.primary,
+    color: POS_COLORS.primaryDark,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   emptyContainer: {
     flex: 1,
@@ -453,11 +473,12 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...TYPOGRAPHY.h3,
-    color: COLORS.text,
+    color: POS_COLORS.ink,
+    fontWeight: '800',
   },
   emptySub: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
+    color: POS_COLORS.muted,
     textAlign: 'center',
     marginTop: 4,
     maxWidth: 280,

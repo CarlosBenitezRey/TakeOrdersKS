@@ -3,13 +3,15 @@ import authService from './src/services/AuthService';
 import LoginScreen from './src/screens/LoginScreen';
 import CajeroScreen from './src/screens/CajeroScreen';
 import CocinaScreen from './src/screens/CocinaScreen';
+import DeliveryScreen from './src/screens/DeliveryScreen';
+import BalanceScreen from './src/screens/admin/BalanceScreen';
 import PremiumLoader from './src/components/PremiumLoader';
 
 export default function App() {
   const [session, setSession] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [currentView, setCurrentView] = useState('cajero'); // 'cajero' | 'cocina'
+  const [currentView, setCurrentView] = useState('cajero'); // 'cajero' | 'cocina' | 'delivery'
 
   useEffect(() => {
     // 1. Recuperar sesión activa al abrir la app
@@ -67,15 +69,58 @@ export default function App() {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
-  return currentView === 'cajero' ? (
+  const rolUsuario = userProfile?.rol?.toLowerCase()?.trim();
+
+  // Rol admin: acceso exclusivo a finanzas y gestión (sin Cocina ni Cajero)
+  if (rolUsuario === 'admin') {
+    return <BalanceScreen userProfile={userProfile} />;
+  }
+
+  // Rol delivery / repartidor: acceso directo a DeliveryScreen
+  if (rolUsuario === 'delivery' || rolUsuario === 'repartidor') {
+    return <DeliveryScreen userProfile={userProfile} />;
+  }
+
+  // Rol cocina / cocinero: acceso directo a CocinaScreen (y puede ver Delivery)
+  if (rolUsuario === 'cocina' || rolUsuario === 'cocinero') {
+    return currentView === 'delivery' ? (
+      <DeliveryScreen
+        userProfile={userProfile}
+        onNavigateCocina={() => setCurrentView('cocina')}
+      />
+    ) : (
+      <CocinaScreen
+        userProfile={userProfile}
+        onNavigateDelivery={() => setCurrentView('delivery')}
+      />
+    );
+  }
+
+  if (currentView === 'cocina') {
+    return (
+      <CocinaScreen
+        userProfile={userProfile}
+        onSwitchView={() => setCurrentView('cajero')}
+        onNavigateDelivery={() => setCurrentView('delivery')}
+      />
+    );
+  }
+
+  if (currentView === 'delivery') {
+    return (
+      <DeliveryScreen
+        userProfile={userProfile}
+        onNavigateCajero={() => setCurrentView('cajero')}
+        onNavigateCocina={() => setCurrentView('cocina')}
+      />
+    );
+  }
+
+  return (
     <CajeroScreen
       userProfile={userProfile}
       onSwitchView={() => setCurrentView('cocina')}
-    />
-  ) : (
-    <CocinaScreen
-      userProfile={userProfile}
-      onSwitchView={() => setCurrentView('cajero')}
+      onNavigateDelivery={() => setCurrentView('delivery')}
     />
   );
 }

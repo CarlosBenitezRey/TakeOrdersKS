@@ -23,7 +23,8 @@ class PedidoRepository {
         )
       `)
       .in('estado', ['pendiente', 'listo'])
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .order('numero', { ascending: true });
 
     if (userSucursalId) {
       // El usuario tiene sucursal asignada: filtrar siempre por ella
@@ -78,11 +79,23 @@ class PedidoRepository {
    * @returns {object} El pedido recién creado.
    */
   async crear(pedidoData, detalles) {
-    const { data: pedido, error: pedidoError } = await supabase
+    let { data: pedido, error: pedidoError } = await supabase
       .from('pedidos')
       .insert(pedidoData)
       .select()
       .single();
+
+    // Fallback seguro si la columna `tipo` tiene un check constraint restrictivo en la BD
+    if (pedidoError && pedidoData.tipo && pedidoData.tipo !== 'local') {
+      const fallbackData = { ...pedidoData, tipo: 'local' };
+      const retry = await supabase
+        .from('pedidos')
+        .insert(fallbackData)
+        .select()
+        .single();
+      pedido = retry.data;
+      pedidoError = retry.error;
+    }
 
     if (pedidoError) throw pedidoError;
 
@@ -145,6 +158,11 @@ class PedidoRepository {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'pedidos' },
+        callback
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'detalle_pedido' },
         callback
       )
       .subscribe();
